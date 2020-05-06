@@ -100,6 +100,11 @@ struct background
   double * scf_parameters;  /**< list of parameters describing the scalar field potential */
   int scf_parameters_size;  /**< size of scf_parameters */
   int scf_tuning_index;     /**< index in scf_parameters used for tuning */
+  //CS
+  int scf_fld_approx;       /**< flag of whether to treat scf as a fluid*/
+  int scf_rec_approx_flg;       /**< whether background_functions() should read the previously recorded approx status in index_bi_phi_switch_scf(such as being called in background_derivs) or write it such as when being called first time in background_solve()*/
+  int scf_flg_just_flipped; /**< used to signal the switch is flipped. so that matching can be done */
+  //SC
   //double scf_lambda; /**< \f$ \lambda \f$ : scalar field exponential potential slope */
   //double scf_alpha;  /**< \f$ \alpha \f$ : Albrecht-Skordis polynomial slope */
   //double scf_B; /**< \f$ \alpha \f$ : Albrecht-Skordis field shift */
@@ -278,6 +283,10 @@ struct background
   int index_bi_tau;     /**< {C} conformal time in Mpc */
   int index_bi_D;       /**< {C} scale independent growth factor D(a) for CDM perturbations. */
   int index_bi_D_prime; /**< {C} D satisfies \f$ [D''(\tau)=-aHD'(\tau)+3/2 a^2 \rho_M D(\tau) \f$ */
+  //CS
+  //int index_bi_phi_switch_scf_req; /**< {C} flag to indicate phi should be matched to the fld approximation */  
+  //int index_bi_phi_switch_scf; /**< {C} flag to record whether phi was matched to the fld approximation */
+  //SC
 
   int bi_B_size;        /**< Number of {B} parameters */
   int bi_size;          /**< Number of {B}+{C} parameters */
@@ -566,6 +575,10 @@ extern "C" {
 
 //@{
 
+//CS
+#define _scf_a_eq_ 0.000143 /**< crude approximate to a_eq, used for determining scf_a_crit etc. */
+#define _scf_tau_eq_ 78.9 /**< crude approximate, in Mpc */
+//SC
 #define _Mpc_over_m_ 3.085677581282e22  /**< conversion factor from meters to megaparsecs */
 /* remark: CAMB uses 3.085678e22: good to know if you want to compare  with high accuracy */
 

@@ -619,7 +619,7 @@ int input_read_parameters(
   double param1,param2,param3;
   int N_ncdm=0,n,entries_read;
   int int1,fileentries;
-  double scf_lambda;
+  //double scf_m;
   double fnu_factor;
   double * pointer1;
   char string1[_ARGUMENT_LENGTH_MAX_];
@@ -1386,10 +1386,12 @@ int input_read_parameters(
     /** - Assign shooting parameter */
     class_read_double("scf_shooting_parameter",pba->scf_parameters[pba->scf_tuning_index]);
 
-    scf_lambda = pba->scf_parameters[0];
-    if ((fabs(scf_lambda) <3.)&&(pba->background_verbose>1))
-      printf("lambda = %e <3 won't be tracking (for exp quint) unless overwritten by tuning function\n",scf_lambda);
-
+    //scf_m = pba->scf_parameters[0];
+    //CS
+    /* if ((fabs(scf_m) <3.)&&(pba->background_verbose>1)) */
+    /*   printf("lambda = %e <3 won't be tracking (for exp quint) unless overwritten by tuning function\n",scf_m); */
+    //SC
+    
     class_call(parser_read_string(pfc,
                                   "attractor_ic_scf",
                                   &string1,
@@ -1401,6 +1403,12 @@ int input_read_parameters(
     if (flag1 == _TRUE_){
       if((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL)){
         pba->attractor_ic_scf = _TRUE_;
+        //CS
+	class_test(1<2,
+                   errmsg,
+                   "Attractor solution is not implemented yet. Please change attractor_ic_scf to False. ");
+	//SC
+	
       }
       else{
         pba->attractor_ic_scf = _FALSE_;
@@ -3194,13 +3202,15 @@ int input_default_params(
   pba->ncdm_psd_files = NULL;
 
   pba->Omega0_scf = 0.; /* Scalar field defaults */
-  pba->attractor_ic_scf = _TRUE_;
+  //pba->attractor_ic_scf = _TRUE_; //CS
+  pba->attractor_ic_scf = _FALSE_; //SC
   pba->scf_parameters = NULL;
   pba->scf_parameters_size = 0;
-  pba->scf_tuning_index = 0;
+  //pba->scf_tuning_index = 0; //CS
+  pba->scf_tuning_index = 4; //SC
   //MZ: initial conditions are as multiplicative factors of the radiation attractor values
   pba->phi_ini_scf = 1;
-  pba->phi_prime_ini_scf = 1;
+  pba->phi_prime_ini_scf = 0;
 
   pba->Omega0_k = 0.;
   pba->K = 0.;
@@ -3830,6 +3840,7 @@ int input_try_unknown_parameters(double * unknown_parameter,
       break;
     case Omega_scf:
       /** - In case scalar field is used to fill, pba->Omega0_scf is not equal to pfzw->target_value[i].*/
+      printf("****with phi(0)=%g, I got %g instead of the wanted value %g\n",  ba.background_table[ba.index_bg_rho_scf], ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0), ba.Omega0_scf);//CS SC
       output[i] = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0)
         -ba.Omega0_scf;
       break;
@@ -3994,17 +4005,29 @@ int input_get_guess(double *xguess,
        * dxdy[index_guess] = -0.5081*pow(ba.Omega0_scf,-9./7.)`;
        *
        * - Version 3: use attractor solution */
-
-      if (ba.scf_tuning_index == 0){
-        xguess[index_guess] = sqrt(3.0/ba.Omega0_scf);
-        dxdy[index_guess] = -0.5*sqrt(3.0)*pow(ba.Omega0_scf,-1.5);
-      }
-      else{
-        /* Default: take the passed value as xguess and set dxdy to 1. */
-        xguess[index_guess] = ba.scf_parameters[ba.scf_tuning_index];
-        dxdy[index_guess] = 1.;
-      }
+      //CS
+      /* if (ba.scf_tuning_index == 0){ */
+      /*   xguess[index_guess] = sqrt(3.0/ba.Omega0_scf); */
+      /*   dxdy[index_guess] = -0.5*sqrt(3.0)*pow(ba.Omega0_scf,-1.5); */
+      /* } */
+      /* else{ */
+      /*   /\* Default: take the passed value as xguess and set dxdy to 1. *\/ */
+      /*   xguess[index_guess] = ba.scf_parameters[ba.scf_tuning_index]; */
+      /*   dxdy[index_guess] = 1.; */
+      /* } */
+      /* break; */
+      
+      xguess[index_guess] = ba.scf_parameters[ba.scf_tuning_index];
+      //dxdy[index_guess] = 1.;
+      //dxdy[index_guess] = 5e-5;
+      //dxdy[index_guess] = 1e-3;
+      //dxdy[index_guess] = 1e-4;
+      dxdy[index_guess] = 1e-1;
+      /*the step is tweaked so that it's fast enough but doesn't result in negative phi(0)
+      /*might need to be tweaked later to be rubust for MCMC scans. */
       break;
+      //SC
+      
     case omega_ini_dcdm:
       Omega0_dcdmdr = 1./(ba.h*ba.h);
     case Omega_ini_dcdm:

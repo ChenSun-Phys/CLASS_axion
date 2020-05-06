@@ -290,7 +290,7 @@ int background_functions(
   /* define quantities to determine when the scalar starts to oscillate*/
   double scf_m;
   double scf_a_crit, scf_tau_crit, scf_k_crit, scf_end_of_scf;
-  //int scf_flg_just_flipped = _FALSE_; 
+  int scf_flg_just_flipped = _FALSE_; 
   //SC
 
   /** - initialize local variables */
@@ -361,20 +361,42 @@ int background_functions(
     if (pba->scf_rec_approx_flg == _TRUE_){
       /* this corresponds to the edge of the intervals, tau_start */
       if (a < scf_a_crit * scf_end_of_scf) {
-	pba->scf_fld_approx = _FALSE_; 
+	pvecback[pba->index_bi_phi_switch_scf] = (double)_FALSE_;
+	/* printf("++++ the fld approximation is off at a=%g ----\n", a_rel); */
+	/* printf("++++ write mode: phi_switch_scf=%g, a=%g\n", pvecback[pba->index_bi_phi_switch_scf], a);    	 */
       }
       else {
-	if (pba->scf_fld_approx == _FALSE_) {
-	  pba->scf_flg_just_flipped = _TRUE_;
-	  /* catch the point when the flag just flipped. do matching later. */
-	  printf("!!!!the fld approximation is about to be flipped at a=%g ----\n", a_rel);
-	}
-	pba->scf_fld_approx = _TRUE_; 
+	pvecback[pba->index_bi_phi_switch_scf] = (double)_TRUE_;
+	//pvecback[pba->index_bi_phi_switch_scf] = (double)_FALSE_;
+	/* printf("++++ the fld approximation is on at a=%g ----\n", a_rel); */
+	printf("++++ write mode: phi_switch_scf=%g, a=%g\n", pvecback[pba->index_bi_phi_switch_scf], a);
       }
     }
+    else{
+      /* this corresponds when _derivs() calls _functions(), the interval between 
+       * tau_start and tau_end     */
+      /* pvecback[pba->index_bi_phi_switch_scf] = pvecback_B[pba->index_bi_phi_switch_scf]; */
+      if (fabs(pvecback_B[pba->index_bi_phi_switch_scf]) < 0.1) {
+	pvecback[pba->index_bi_phi_switch_scf] = (double) _FALSE_;
+      }
+      else if (fabs(pvecback_B[pba->index_bi_phi_switch_scf] -1.) < 0.1) {
+	pvecback[pba->index_bi_phi_switch_scf] = (double) _TRUE_;
+      }
+      else {
+	printf("!!!! the switch is going like crazy. Result shouldn't be trusted. \n");
+      }
+      //printf("---- read mode: phi_switch_scf=%g, a=%g\n", pvecback_B[pba->index_bi_phi_switch_scf], a);          
+    }
+    /* double check write mode is respected */
+    if ((pvecback_B[pba->index_bi_phi_switch_scf] == (double)_FALSE_ )&& (pvecback[pba->index_bi_phi_switch_scf] ==(double) _TRUE_)) {
+      printf("!!!!the fld approximation is about to be flipped at a=%g ----\n", a_rel);
+      //printf("-----rho=%g\n",pvecback_B[pba->index_bg_rho_scf]);   // this doesn't make sense. pvecback_B[pba->index_bg_rho_scf] is not assigned yet. 
+     /* postponing the matching */
+      scf_flg_just_flipped = _TRUE_; 
+      }
     
     /* do the real work according to the  switch status */
-    if (pba->scf_fld_approx == _FALSE_) {
+    if (pvecback[pba->index_bi_phi_switch_scf] == (double)_FALSE_) {
       phi = pvecback_B[pba->index_bi_phi_scf];
       phi_prime = pvecback_B[pba->index_bi_phi_prime_scf];
       pvecback[pba->index_bg_phi_scf] = phi; // value of the scalar field phi
@@ -399,8 +421,8 @@ int background_functions(
     else {
       /* in write mode and flag just flipped */
       /* do the matching */
-      if (pba->scf_flg_just_flipped == _TRUE_) {
-	printf("I'm about to match phi to rho_phi in %s mode. \n", (pba->scf_rec_approx_flg)? "Writing": "Reading");
+      if ((pba->scf_rec_approx_flg == _TRUE_) && (scf_flg_just_flipped == _TRUE_)) {
+	printf("I'm about to match phi to rho_phi\n.");
 	phi = pvecback_B[pba->index_bi_phi_scf];
 	phi_prime = pvecback_B[pba->index_bi_phi_prime_scf];
 	scf_w = pba->scf_parameters[3];
@@ -569,8 +591,11 @@ int background_functions(
     //scf_k_crit = scf_m * scf_a_crit;
 
     //CS add logic
-    if (pba->scf_fld_approx == _FALSE_) {
+    //if (pba->scf_fld_approx == _FALSE_) {
+    if (pvecback[pba->index_bi_phi_switch_scf] == (double)_FALSE_) {
+      //printf("----a=%g, scf_a_crit=%g, scf_end_of_scf=%g\n", a, scf_a_crit, scf_end_of_scf);      
       /** The contribution of scf was not added to dp_dloga, add p_scf_prime here: */
+      //printf("----rho_tot-pba->K/a/a = %g\n", rho_tot-pba->K/a/a); //CS //SC
       //printf("----field picture\n");
       pvecback[pba->index_bg_p_prime_scf] = pvecback[pba->index_bg_phi_prime_scf]*
 	(-pvecback[pba->index_bg_phi_prime_scf]*pvecback[pba->index_bg_H]/a-2./3.*pvecback[pba->index_bg_dV_scf]);
@@ -1169,7 +1194,7 @@ int background_indices(
   class_define_index(pba->index_bi_phi_scf,pba->has_scf,index_bi,1);
   class_define_index(pba->index_bi_phi_prime_scf,pba->has_scf,index_bi,1);
   //CS
-  //class_define_index(pba->index_bi_phi_switch_scf,pba->has_scf,index_bg,1);
+  class_define_index(pba->index_bi_phi_switch_scf,pba->has_scf,index_bg,1);
   //SC
 
   /* End of {B} variables, now continue with {C} variables */
@@ -1782,8 +1807,8 @@ int background_solve(
   /* comoving radius coordinate in Mpc (equal to conformal distance in flat case) */
   double comoving_radius=0.;
   //CS
-  //int scf_counter = 0;
-  //double tmp1, tmp2; 
+  int scf_counter = 0;
+  double tmp1, tmp2; 
   //SC
 
   bpaw.pba = pba;
@@ -1819,31 +1844,118 @@ int background_solve(
   /* initialize the counter for the number of steps */
   pba->bt_size=0;
 
-  //CS set the first step to start with field picture
-  if (pba->has_scf == _TRUE_){
-    pba->scf_fld_approx = _FALSE_;      
-  }
-  //SC
-
   /** - loop over integration steps: call background_functions(), find step size, save data in growTable with gt_add(), perform one step with generic_integrator(), store new value of tau */
 
   while (pvecback_integration[pba->index_bi_a] < pba->a_today) {
+    scf_counter++;
+    /* if (5.<tau_start && tau_start < 18.) { */
+    /* if (scf_counter < 5) {  */
+    /*   printf("\n"); */
+    /*   printf("---- forward tau from %g to %g ----\n", tau_start, tau_end); */
+    /* } */
     tau_start = tau_end;
 
-    /* CS turn on to allow background_functions to write to pvecback[pba->index_bi_phi_switch_scf] */
-    /* this makes sure the appx is only turned on at the edge of the intervals to avoid messing with _derivs*/
-    /* do we need to do the matching here if just flipped? */
+    //CS turn on to allow background_functions to write to pvecback[pba->index_bi_phi_switch_scf]
     if (pba->has_scf == _TRUE_){
-      pba->scf_rec_approx_flg = _TRUE_;
-      pba->scf_flg_just_flipped = _FALSE_; 
+      pba->scf_rec_approx_flg = _TRUE_;      
     }
     //SC
 
     /* -> find step size (trying to adjust the last step as close as possible to the one needed to reach a=a_today; need not be exact, difference corrected later) */
+    if (pba->has_scf == _TRUE_){
+      /* if (5.<tau_start && tau_start < 18.) { */
+    /* if (scf_counter < 5) { */
+    /*   	    printf("----1st call: i'm about to call b_func(), with %s mode., pvecback_integration[pba->index_bi_phi_switch_scf]= %g.\n", (pba->scf_rec_approx_flg)? "Writing": "Reading", pvecback_integration[pba->index_bi_phi_switch_scf]); */
+    /*   	  } */
+      /* if (pvecback_integration[pba->index_bi_phi_scf] < 1e-29) { */
+      /* 	exit(1); */
+      /* 	printf("error breaking! \n"); */
+      /* } */
+    }
 
     class_call(background_functions(pba,pvecback_integration, pba->short_info, pvecback),
                pba->error_message,
                pba->error_message);
+
+    if (pba->has_scf == _TRUE_){
+      /* this makes sure the appx is only turned on at the edge of the intervals*/
+      pvecback_integration[pba->index_bi_phi_switch_scf] = pvecback[pba->index_bi_phi_switch_scf];
+      /* this only matters at the point pvecback[pba->index_bg_phi_scf] changes from phi to rho_phi*/
+      pvecback_integration[pba->index_bi_phi_scf] = pvecback[pba->index_bg_phi_scf];
+      /* if (5.<tau_start && tau_start < 18.) { */
+      /* if (scf_counter < 5) { */
+      /* if (pvecback[pba->index_bg_rho_scf] < 1e6 && pvecback[pba->index_bg_rho_scf]> 9e5){	 */
+      /* if (pvecback[pba->index_bg_rho_scf] < 1e5 && pvecback[pba->index_bg_rho_scf]> 9e4){	 */
+      /* if (pvecback[pba->index_bg_rho_scf] < 1e4 && pvecback[pba->index_bg_rho_scf]> 9e3){	 */
+      /* 	printf("---- forward tau from %g to %g ----\n", tau_start, tau_end);  */
+      /* 	printf("----1st call: done. pvec_int[phi_switch_scf]= %g, rho=%g.\n", */
+      /* 	       pvecback_integration[pba->index_bi_phi_switch_scf], */
+      /* 	       pvecback[pba->index_bg_rho_scf]); */
+      /* } */
+      /* write to file for debugging */
+      FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_rho_phi_of_tau.txt", "a");
+      if (f ==NULL){
+	printf("error creating log file.\n");
+	exit(1);
+      }
+      fprintf(f, "%g %g\n", tau_start, pvecback[pba->index_bg_rho_scf]); 
+      fclose(f);
+
+      f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau.txt", "a");
+      if (f ==NULL){
+	printf("error creating log file.\n");
+	exit(1);
+      }
+      fprintf(f, "%g %g\n", tau_start, pvecback[pba->index_bg_phi_scf]); 
+      fclose(f);
+
+      f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phiprime_of_tau.txt", "a");
+      if (f ==NULL){
+      	printf("error creating log file.\n");
+      	exit(1);
+      }
+      fprintf(f, "%g %g\n", tau_start, pvecback[pba->index_bg_phi_prime_scf]);
+      fclose(f);
+
+      /* f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_V_of_tau.txt", "a"); */
+      /* if (f ==NULL){ */
+      /* 	printf("error creating log file.\n"); */
+      /* 	exit(1); */
+      /* } */
+      /* fprintf(f, "%g %g\n", tau_start, V_scf(pba, pvecback[pba->index_bg_phi_scf])); */
+      /* fclose(f); */
+    }
+    /** CS
+     * need to treat scf separately here
+     * regarding matching scf to fld, the tricky part is that we want the switch flag to 
+     * affect the regime in this background_functions call, while be neglected when it's 
+     * called within background_derivs. The solution is to let background_functions output 
+     * the recommendation, but we make the switch here.
+     */
+    /* if (pba->has_scf == _TRUE_){ */
+    /*   /\* at the switching point, need to do some matching *\/       */
+    /*   if ((pvecback[pba->index_bi_phi_switch_scf] == _TRUE_) && (pba->scf_fld_approx == _FALSE_) ) { */
+    /* 	//printf(":::: switch status is %d ::::\n", pba->scf_fld_approx); */
+    /* 	printf("----the switch is about to be flipped at tau=%g ----\n", tau_start); */
+    /* 	/\* after switching, use phi index to store rho_phi *\/ */
+    /* 	printf("----phi=%g ----\n", pvecback_integration[pba->index_bi_phi_scf]);	 */
+    /* 	pvecback_integration[pba->index_bi_phi_scf] = pvecback[pba->index_bg_rho_scf]; */
+    /* 	printf("----phi value is replaced to rho=%g ----\n", pvecback_integration[pba->index_bi_phi_scf]); */
+    /* 	pba->scf_fld_approx = _TRUE_; */
+    /* 	/\* refresh pvecback *\/ */
+    /* 	class_call(background_functions(pba,pvecback_integration, pba->short_info, pvecback), */
+    /* 		   pba->error_message, */
+    /* 		   pba->error_message); */
+    /* 	printf("----the switch is flipped at tau=%g ----\n", tau_start); */
+    /* 	//printf(":::: switch status is %d ::::\n", pba->scf_fld_approx); */
+    /* 	//printf(" tuning index is %d\n\n", pba->scf_tuning_index); */
+    /*   } */
+    /* } */
+
+    /* moved inside background_functions()
+     * now it's controled by pba->scf_rec_approx_flg
+     */
+    //SC
     
     if ((pvecback_integration[pba->index_bi_a]*(1.+ppr->back_integration_stepsize)) < pba->a_today) {
       tau_end = tau_start + ppr->back_integration_stepsize / (pvecback_integration[pba->index_bi_a]*pvecback[pba->index_bg_H]);
@@ -1864,22 +1976,23 @@ int background_solve(
                pba->error_message);
     pba->bt_size++;
 
+    //CS turn off background_functions so when it's called derivs it won't confuse derivs. I call it ``reading mode'' 
     if (pba->has_scf == _TRUE_){
-      //CS turn off pba->scf_rec_approx_flg so when it's called by derivs it won't confuse derivs. I call it ``reading mode'' 
       pba->scf_rec_approx_flg = _FALSE_;
-
-      /* store rho_phi inside phi here only after gTable is stored */
-      if (pba->scf_flg_just_flipped == _TRUE_){
-	pvecback_integration[pba->index_bi_phi_scf] = pvecback[pba->index_bg_phi_scf];
-	//pvecback_integration[pba->index_bi_phi_prime_scf] = 0.; //seems not important. 
-	//pvecback_integration[pba->index_bi_phi_scf] = pvecback[pba->index_bg_rho_scf];
-	pba->scf_flg_just_flipped = _FALSE_;
-      }      
-    //SC
+      //tmp1 = pvecback_integration[pba->index_bi_phi_scf];
+      FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau_before.txt", "a");
+      if (f ==NULL){
+	printf("error creating log file.\n");
+	exit(1);
+      }
+      fprintf(f, "%g %g\n", tau_start, pvecback_integration[pba->index_bi_phi_scf]); 
+      fclose(f);
     }
-
+    
+    //SC
+    
     /* -> perform one step */
-    //CSSC: the code of generic_integrator shows it evolves (modifies) pvecback_integration from tau_start to tau_end
+    //CSSC: the code of generic_integrator shows it evolves (modifies) pvecback_integration from tau_start to tau_end 
     class_call(generic_integrator(background_derivs,
                                   tau_start,
                                   tau_end,
@@ -1890,25 +2003,33 @@ int background_solve(
                                   &gi),
                gi.error_message,
                pba->error_message);
+    //CS
+    if (pba->has_scf == _TRUE_){
+      //tmp2 = pvecback_integration[pba->index_bi_phi_scf];
+      FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau_after.txt", "a");
+      if (f ==NULL){
+	printf("error creating log file.\n");
+	exit(1);
+      }
+      fprintf(f, "%g %g\n", tau_start, pvecback_integration[pba->index_bi_phi_scf]); 
+      fclose(f);
+      
+    }
+    //SC
     /* -> store value of tau */
     pvecback_integration[pba->index_bi_tau]=tau_end;
-
-    //CS
+    /* //CS */
     /* if (pba->has_scf == _TRUE_){ */
-    /*   //tmp2 = pvecback_integration[pba->index_bi_phi_scf]; */
-    /*   FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau_after.txt", "a"); */
+    /*   FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phiprime_of_tau.txt", "a"); */
     /*   if (f ==NULL){ */
     /* 	printf("error creating log file.\n"); */
     /* 	exit(1); */
     /*   } */
-    /*   //fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback_integration[pba->index_bi_phi_scf]); */
-    /*   fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback[pba->index_bg_rho_scf]);  */
+    /*   fprintf(f, "%g %g\n", tau_start, pvecback_integration[pba->index_bi_phi_prime_scf]);  */
     /*   fclose(f); */
-      
     /* } */
-    //SC
   }
-
+  //SC
 
   /** - save last data in growTable with gt_add() */
   class_call(gt_add(&gTable,_GT_END_,(void *) pvecback_integration,sizeof(double)*pba->bi_size),
@@ -1971,15 +2092,9 @@ int background_solve(
 
   class_alloc(pba->d2background_dtau2_table,pba->bt_size * pba->bg_size * sizeof(double),pba->error_message);
 
-  //CS in the final looping go back to write mode to reproduce the above pvecback
-  if (pba->has_scf) {
-    pba->scf_fld_approx = _FALSE_;
-    pba->scf_rec_approx_flg = _TRUE_;
-  }
-  //SC
-
   /** - In a loop over lines, fill background table using the result of the integration plus background_functions() */
   for (i=0; i < pba->bt_size; i++) {
+
     /* -> establish correspondence between the integrated variable and the bg variables */
 
     pba->tau_table[i] = pData[i*pba->bi_size+pba->index_bi_tau];
@@ -2008,19 +2123,24 @@ int background_solve(
     /* need to be careful here so that early phi_scf is not erased. */
     // since we turned off background_functions before derivs it should be fine.
     
+    /* if (pba->has_scf == _TRUE_){ */
+    /*   if ((pvecback[pba->index_bi_phi_switch_scf_req] == _TRUE_) && (pba->scf_fld_approx == _FALSE_) ) { */
+    /* 	printf("----final looping, the switch is about to be flipped at tau=%g ----\n", pba->tau_table[i]); */
+    /* 	/\* after switching, use phi index to store rho_phi *\/ */
+    /* 	(pData+i*pba->bi_size)[pba->index_bi_phi_scf] = pvecback[pba->index_bg_rho_scf]; */
+    /* 	/\* this is the only place to flip scf_fld_approx switch *\/ */
+    /* 	pba->scf_fld_approx = _TRUE_; */
+    /* 	/\* refresh pvecback *\/ */
+    /* 	class_call(background_functions(pba,pData+i*pba->bi_size, pba->long_info, pvecback), */
+    /* 		   pba->error_message, */
+    /* 		   pba->error_message); */
+    /*   } */
+    /* }     */
+    //SC
     //printf("final loop: i'm about to call b_func(), with %s mode.\n", (pba->scf_rec_approx_flg)? "Writing": "Reading");
     class_call(background_functions(pba,pData+i*pba->bi_size, pba->long_info, pvecback),
                pba->error_message,
                pba->error_message);
-
-    //CS in the final looping go back to write mode to reproduce the above pvecback
-    if (pba->has_scf) {
-      if (pba->scf_flg_just_flipped == _TRUE_){
-	pba->scf_flg_just_flipped = _FALSE_;
-      }
-    }
-    //SC    
-    
 
     /* -> compute growth functions (valid in dust universe) */
 
@@ -2263,7 +2383,7 @@ int background_initial_conditions(
    */
   if(pba->has_scf == _TRUE_){
     //pba->scf_fld_approx = _FALSE_; /* set i.c. to use field description */
-    //pvecback_integration[pba->index_bi_phi_switch_scf] = (double)_FALSE_;
+    pvecback_integration[pba->index_bi_phi_switch_scf] = (double)_FALSE_;
     scf_m = pba->scf_parameters[0];
 
     //CS: the attractor solution is broken as I changed the potential. to be removed
@@ -2643,13 +2763,12 @@ int background_derivs(
 
   if (pba->has_scf == _TRUE_){
     /** - before the switch scalar field equation: \f$ \phi'' + 2 a H \phi' + a^2 dV = 0 \f$  (note H is wrt cosmic time) */
-    //if (pvecback[pba->index_bi_phi_switch_scf] == (double)_FALSE_) {
-    if (pba->scf_fld_approx == _FALSE_) {
+    if (pvecback[pba->index_bi_phi_switch_scf] == (double)_FALSE_) {
       dy[pba->index_bi_phi_scf] = y[pba->index_bi_phi_prime_scf];
       dy[pba->index_bi_phi_prime_scf] = - y[pba->index_bi_a]*
       	(2*pvecback[pba->index_bg_H]*y[pba->index_bi_phi_prime_scf]
       	 + y[pba->index_bi_a]*dV_scf(pba,y[pba->index_bi_phi_scf])) ;
-      //dy[pba->index_bi_phi_switch_scf] = 0.;  //take the switch as one function, this maintains y is unchanged. 
+      dy[pba->index_bi_phi_switch_scf] = 0.;  //take the switch as one function, this maintains y is unchanged. 
       /* dy[pba->index_bi_phi_scf] = 0.; */
       /* dy[pba->index_bi_phi_prime_scf] = 0. ; //check if this makes phi still */
     }
@@ -2658,7 +2777,7 @@ int background_derivs(
       dy[pba->index_bi_phi_scf] = -3.*(pvecback[pba->index_bg_rho_scf] + pvecback[pba->index_bg_p_scf])*y[pba->index_bi_a]*pvecback[pba->index_bg_H];
       //dy[pba->index_bi_phi_scf] = 0. ; 
       dy[pba->index_bi_phi_prime_scf] = 0.;
-      //dy[pba->index_bi_phi_switch_scf] = 0.;       
+      dy[pba->index_bi_phi_switch_scf] = 0.;       
     }
   }
 
