@@ -97,10 +97,15 @@ struct background
   short attractor_ic_scf;   /**< whether the scalar field has attractor initial conditions */
   double phi_ini_scf;       /**< \f$ \phi(t_0) \f$: scalar field initial value */
   double phi_prime_ini_scf; /**< \f$ d\phi(t_0)/d\tau \f$: scalar field initial derivative wrt conformal time */
-  double * scf_parameters;  /**< list of parameters describing the scalar field potential */
-  int scf_parameters_size;  /**< size of scf_parameters */
-  int scf_tuning_index;     /**< index in scf_parameters used for tuning */
   //CS
+  double scf_m;
+  double scf_f;
+  double scf_tau_end_over_tau_crit;
+  double scf_w;
+  double scf_phiprime_ini;
+  //double * scf_parameters;  /**< list of parameters describing the scalar field potential */
+  //int scf_parameters_size;  /**< size of scf_parameters */
+  //int scf_tuning_index;     /**< index in scf_parameters used for tuning */
   int scf_fld_approx;       /**< flag of whether to treat scf as a fluid*/
   int scf_rec_approx_flg;       /**< whether background_functions() should read the previously recorded approx status in index_bi_phi_switch_scf(such as being called in background_derivs) or write it such as when being called first time in background_solve()*/
   int scf_flg_just_flipped; /**< used to signal the switch is flipped. so that matching can be done */
@@ -587,6 +592,10 @@ extern "C" {
 #define _c_ 2.99792458e8            /**< c in m/s */
 #define _G_ 6.67428e-11             /**< Newton constant in m^3/Kg/s^2 */
 #define _eV_ 1.602176487e-19        /**< 1 eV expressed in J */
+//CS
+#define _eV_Mpc_ 1.5637496259e29    /**< 1 eV expressed in 1/Mpc */
+#define _sqrt_8pi_ 5.013256549      /**< sqrt(8*pi) */
+//SC
 
 /* parameters entering in Stefan-Boltzmann constant sigma_B */
 #define _k_B_ 1.3806504e-23

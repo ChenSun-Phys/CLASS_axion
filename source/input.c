@@ -275,18 +275,17 @@ int input_init(
    * See input_try_unknown_parameters for the actual shooting
    *
    */
-
   char * const target_namestrings[] = {"100*theta_s","Omega_dcdmdr","omega_dcdmdr",
-                                       "Omega_scf","Omega_ini_dcdm","omega_ini_dcdm","sigma8"};
+                                       "phi_ini_scf","Omega_ini_dcdm","omega_ini_dcdm","sigma8"};
   char * const unknown_namestrings[] = {"h","Omega_ini_dcdm","Omega_ini_dcdm",
-                                        "scf_shooting_parameter","Omega_dcdmdr","omega_dcdmdr","A_s"};
+                                        "Omega_scf","Omega_dcdmdr","omega_dcdmdr","A_s"};
   enum computation_stage target_cs[] = {cs_thermodynamics, cs_background, cs_background,
                                         cs_background, cs_background, cs_background, cs_nonlinear};
 
   int input_verbose = 0, int1, aux_flag, shooting_failed=_FALSE_;
 
   class_read_int("input_verbose",input_verbose);
-  if (input_verbose >0) printf("Reading input parameters\n");
+  if (input_verbose >2) printf("Reading input parameters\n");
 
   /** - Do we need to fix unknown parameters? */
   unknown_parameters_size = 0;
@@ -336,7 +335,6 @@ int input_init(
     memcpy(fzw.fc.name, pfc->name, pfc->size*sizeof(FileArg));
     memcpy(fzw.fc.value, pfc->value, pfc->size*sizeof(FileArg));
     memcpy(fzw.fc.read, pfc->read, pfc->size*sizeof(short));
-
     class_alloc(unknown_parameter,
                 unknown_parameters_size*sizeof(double),
                 errmsg);
@@ -350,6 +348,9 @@ int input_init(
     class_alloc(fzw.target_value,
                 fzw.target_size*sizeof(double),
                 errmsg);
+    /* //CS */
+    /* printf("there are %d unknwon params.\n", unknown_parameters_size); */
+    /* //SC */
 
     /** - --> go through all cases with unknown parameters: */
     for (counter = 0; counter < unknown_parameters_size; counter++){
@@ -371,7 +372,6 @@ int input_init(
       strcpy(fzw.fc.name[fzw.unknown_parameters_index[counter]],unknown_namestrings[index_target]);
       //printf("%d, %d: %s\n",counter,index_target,target_namestrings[index_target]);
     }
-
     if (unknown_parameters_size == 1){
       if (input_verbose > 0) {
         fprintf(
@@ -383,6 +383,7 @@ int input_init(
       }
       /* We can do 1 dimensional root finding */
       /* If shooting fails, postpone error to background module to play nice with MontePython. */
+      if (input_verbose >2) printf("about to run input_find_root\n");      
       class_call_try(input_find_root(&xzero,
                                      &fevals,
                                      &fzw,
@@ -390,6 +391,8 @@ int input_init(
                      errmsg,
                      pba->shooting_error,
                      shooting_failed=_TRUE_);
+
+      //printf("done with input_find_root\n");
 
       /* Store xzero */
       sprintf(fzw.fc.value[fzw.unknown_parameters_index[0]],"%e",xzero);
@@ -416,7 +419,9 @@ int input_init(
                                  &fzw,
                                  errmsg),
                  errmsg, errmsg);
-
+      /* //CS */
+      /* printf("about to try Newton\n"); */
+      /* //SC */
       class_call_try(fzero_Newton(input_try_unknown_parameters,
                                   x_inout,
                                   dxdF,
@@ -427,8 +432,7 @@ int input_init(
                                   &fevals,
                                   errmsg),
                      errmsg, pba->shooting_error,shooting_failed=_TRUE_);
-
-
+      printf("done with Newton.\n");
 
       /* Store xzero */
       for (counter = 0; counter < unknown_parameters_size; counter++){
@@ -451,6 +455,7 @@ int input_init(
 
 
     /** - --> Read all parameters from tuned pfc */
+    //printf("Shooting completed, about to read the virtual file\n");
     class_call(input_read_parameters(&(fzw.fc),
                                      ppr,
                                      pba,
@@ -490,6 +495,7 @@ int input_init(
   else{
 
     /** - --> just read all parameters from input pfc: */
+    printf("seems there's no unknown params\n");
     class_call(input_read_parameters(pfc,
                                      ppr,
                                      pba,
@@ -1258,19 +1264,21 @@ int input_read_parameters(
              errmsg,
              errmsg);
 
-  class_test((flag1 == _TRUE_) && (flag2 == _TRUE_) && ((flag3 == _FALSE_) || (param3 >= 0.)),
+  //CS
+  class_test((flag1 == _TRUE_) && (flag2 == _TRUE_) && (flag3 == _FALSE_),
              errmsg,
-             "In input file, either Omega_Lambda or Omega_fld must be left unspecified, except if Omega_scf is set and <0.0, in which case the contribution from the scalar field will be the free parameter.");
+             "In input file, either Omega_Lambda or Omega_fld must be left unspecified.");
 
-  /** - --> (flag3 == _FALSE_) || (param3 >= 0.) explained:
-   *  it means that either we have not read Omega_scf so we are ignoring it
-   *  (unlike lambda and fld!) OR we have read it, but it had a
-   *  positive value and should not be used for filling.
+  class_test((flag1 == _TRUE_) && (flag3 == _TRUE_),
+             errmsg,
+             "In input file, if you include axion, Omega_Lambda must be left unspecified..");
+/*
    *  We now proceed in two steps:
    *  1) set each Omega0 and add to the total for each specified component.
    *  2) go through the components in order {lambda, fld, scf} and
    *     fill using first unspecified component.
    */
+  //SC
 
   /* Step 1 */
   if (flag1 == _TRUE_){
@@ -1281,7 +1289,7 @@ int input_read_parameters(
     pba->Omega0_fld = param2;
     Omega_tot += pba->Omega0_fld;
   }
-  if ((flag3 == _TRUE_) && (param3 >= 0.)){
+  if (flag3 == _TRUE_){
     pba->Omega0_scf = param3;
     Omega_tot += pba->Omega0_scf;
   }
@@ -1296,11 +1304,13 @@ int input_read_parameters(
     pba->Omega0_fld = 1. - pba->Omega0_k - Omega_tot;
     if (input_verbose > 0) printf(" -> matched budget equations by adjusting Omega_fld = %e\n",pba->Omega0_fld);
   }
-  else if ((flag3 == _TRUE_) && (param3 < 0.)){
-    // Fill up with scalar field
-    pba->Omega0_scf = 1. - pba->Omega0_k - Omega_tot;
-    if (input_verbose > 0) printf(" -> matched budget equations by adjusting Omega_scf = %e\n",pba->Omega0_scf);
-  }
+  //CS
+  /* else if ((flag3 == _TRUE_) && (param3 < 0.)){ */
+  /*   // Fill up with scalar field */
+  /*   pba->Omega0_scf = 1. - pba->Omega0_k - Omega_tot; */
+  /*   if (input_verbose > 0) printf(" -> matched budget equations by adjusting Omega_scf = %e\n",pba->Omega0_scf); */
+  /* } */
+  //SC
 
   /*
     fprintf(stderr,"%e %e %e %e %e\n",
@@ -1311,12 +1321,13 @@ int input_read_parameters(
     Omega_tot);
   */
 
-  /** - Test that the user have not specified Omega_scf = -1 but left either
-      Omega_lambda or Omega_fld unspecified:*/
-  class_test(((flag1 == _FALSE_)||(flag2 == _FALSE_)) && ((flag3 == _TRUE_) && (param3 < 0.)),
-             errmsg,
-             "It looks like you want to fulfil the closure relation sum Omega = 1 using the scalar field, so you have to specify both Omega_lambda and Omega_fld in the .ini file");
-
+ /* CS: check it's positive */
+  /* class_test(((flag3 == _TRUE_) && (param3 < 0.)), */
+  /*            errmsg, */
+  /*            "It looks like you have a negative Omega_scf. Something is wrong. \n"); */
+  /* allows it to be slightly negative so that CLASS can keep shooting */
+/* SC */
+  
   if (pba->Omega0_fld != 0.) {
 
     class_call(parser_read_string(pfc,
@@ -1370,56 +1381,95 @@ int input_read_parameters(
   }
 
   /* Additional SCF parameters: */
-  if (pba->Omega0_scf != 0.){
-    /** - Read parameters describing scalar field potential */
-    class_call(parser_read_list_of_doubles(pfc,
-                                           "scf_parameters",
-                                           &(pba->scf_parameters_size),
-                                           &(pba->scf_parameters),
-                                           &flag1,
-                                           errmsg),
-               errmsg,errmsg);
-    class_read_int("scf_tuning_index",pba->scf_tuning_index);
-    class_test(pba->scf_tuning_index >= pba->scf_parameters_size,
-               errmsg,
-               "Tuning index scf_tuning_index = %d is larger than the number of entries %d in scf_parameters. Check your .ini file.",pba->scf_tuning_index,pba->scf_parameters_size);
-    /** - Assign shooting parameter */
-    class_read_double("scf_shooting_parameter",pba->scf_parameters[pba->scf_tuning_index]);
-
-    //scf_m = pba->scf_parameters[0];
-    //CS
-    /* if ((fabs(scf_m) <3.)&&(pba->background_verbose>1)) */
-    /*   printf("lambda = %e <3 won't be tracking (for exp quint) unless overwritten by tuning function\n",scf_m); */
-    //SC
-    
-    class_call(parser_read_string(pfc,
-                                  "attractor_ic_scf",
-                                  &string1,
-                                  &flag1,
-                                  errmsg),
-               errmsg,
-               errmsg);
-
-    if (flag1 == _TRUE_){
-      if((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL)){
-        pba->attractor_ic_scf = _TRUE_;
-        //CS
-	class_test(1<2,
-                   errmsg,
-                   "Attractor solution is not implemented yet. Please change attractor_ic_scf to False. ");
-	//SC
-	
-      }
-      else{
-        pba->attractor_ic_scf = _FALSE_;
-        class_test(pba->scf_parameters_size<2,
-                   errmsg,
-                   "Since you are not using attractor initial conditions, you must specify phi and its derivative phi' as the last two entries in scf_parameters. See explanatory.ini for more details.");
-        pba->phi_ini_scf = pba->scf_parameters[pba->scf_parameters_size-2];
-        pba->phi_prime_ini_scf = pba->scf_parameters[pba->scf_parameters_size-1];
-      }
+  /** - Read phi_ini_scf */
+  class_call(parser_read_double(pfc,"phi_ini_scf",&param1,&flag1,errmsg),
+	     errmsg,
+	     errmsg);
+  if (flag1==_TRUE_)
+    {
+      pba->phi_ini_scf = param1 * _sqrt_8pi_; //convert to reduced Mpl
     }
-  }
+
+  class_call(parser_read_double(pfc,"scf_m",&param1,&flag1,errmsg),
+	     errmsg,
+	     errmsg);
+  if (flag1==_TRUE_)
+    {
+      pba->scf_m = param1 * _eV_Mpc_; //convert eV to 1/Mpc
+    }
+  
+  class_call(parser_read_double(pfc,"scf_f",&param1,&flag1,errmsg),
+	     errmsg,
+	     errmsg);
+  if (flag1==_TRUE_)
+    {
+      pba->scf_f = param1 * _sqrt_8pi_; //convert to reduced Mpl
+    }
+  
+  class_call(parser_read_double(pfc,"scf_tau_end_over_tau_crit",&param1,&flag1,errmsg),
+	     errmsg,
+	     errmsg);
+  if (flag1==_TRUE_)
+    {
+      pba->scf_tau_end_over_tau_crit = param1; 
+    }
+
+  class_call(parser_read_double(pfc,"scf_w",&param1,&flag1,errmsg),
+	     errmsg,
+	     errmsg);
+  if (flag1==_TRUE_)
+    {
+      pba->scf_w = param1; 
+    }
+
+  class_call(parser_read_double(pfc,"scf_phiprime_ini",&param1,&flag1,errmsg),
+	     errmsg,
+	     errmsg);
+  if (flag1==_TRUE_)
+    {
+      pba->phi_prime_ini_scf = param1 * _sqrt_8pi_; 
+    }
+  
+  //if (pba->Omega0_scf != 0.){
+  /* if (pba->phi_ini_scf != 0.){ */
+  /*       pba->attractor_ic_scf = _FALSE_; */
+  /*       pba->phi_prime_ini_scf = pba->scf_parameters[pba->scf_parameters_size-1]; */
+    
+    /** - Read parameters describing scalar field potential */
+  /*   class_call(parser_read_list_of_doubles(pfc, */
+  /*                                          "scf_parameters", */
+  /*                                          &(pba->scf_parameters_size), */
+  /*                                          &(pba->scf_parameters), */
+  /*                                          &flag1, */
+  /*                                          errmsg), */
+  /*              errmsg,errmsg); */
+  /* /\* CS: now that the tuning parameter will be Omega_scf, no need to read tuning_index *\/ */
+  /*   //SC */
+    
+  /*   class_call(parser_read_string(pfc, */
+  /*                                 "attractor_ic_scf", */
+  /*                                 &string1, */
+  /*                                 &flag1, */
+  /*                                 errmsg), */
+  /*              errmsg, */
+  /*              errmsg); */
+
+  /*   if (flag1 == _TRUE_){ */
+  /*     if((strstr(string1,"y") != NULL) || (strstr(string1,"Y") != NULL)){ */
+  /*       pba->attractor_ic_scf = _TRUE_; */
+  /*       //CS */
+  /* 	class_test(1<2, */
+  /*                  errmsg, */
+  /*                  "Attractor solution is not implemented yet. Please change attractor_ic_scf to False. "); */
+  /* 	//SC */
+	
+  /*     } */
+  /*     else{ */
+  /*       pba->attractor_ic_scf = _FALSE_; */
+  /*       pba->phi_prime_ini_scf = pba->scf_parameters[pba->scf_parameters_size-1]; */
+  /*     } */
+  /*   } */
+  /* } */
 
   /** (b) assign values to thermodynamics cosmological parameters */
 
@@ -3123,7 +3173,7 @@ int input_read_parameters(
                errmsg,
                errmsg);
   }
-
+  //printf("finished reading params for now\n");
   return _SUCCESS_;
 
 }
@@ -3203,14 +3253,19 @@ int input_default_params(
 
   pba->Omega0_scf = 0.; /* Scalar field defaults */
   //pba->attractor_ic_scf = _TRUE_; //CS
-  pba->attractor_ic_scf = _FALSE_; //SC
-  pba->scf_parameters = NULL;
-  pba->scf_parameters_size = 0;
+  //pba->attractor_ic_scf = _FALSE_; //SC
+  //pba->scf_parameters = NULL;
+  //pba->scf_parameters_size = 0;
   //pba->scf_tuning_index = 0; //CS
-  pba->scf_tuning_index = 4; //SC
+  //pba->scf_tuning_index = 4; //SC
   //MZ: initial conditions are as multiplicative factors of the radiation attractor values
-  pba->phi_ini_scf = 1;
+  //pba->phi_ini_scf = 1;
+  pba->phi_ini_scf = 0.;  /* now this plays the role of scalar switch*/
   pba->phi_prime_ini_scf = 0;
+  pba->scf_m = 0.;
+  pba->scf_f = 0.;
+  pba->scf_w = 0.;
+  pba->scf_tau_end_over_tau_crit = 0.;
 
   pba->Omega0_k = 0.;
   pba->K = 0.;
@@ -3543,7 +3598,7 @@ int input_fzerofun_1d(double input,
                       void* pfzw,
                       double *output,
                       ErrorMsg error_message){
-
+  //printf("about to try unknown_params\n");
   class_call(input_try_unknown_parameters(&input,
                                           1,
                                           pfzw,
@@ -3551,7 +3606,7 @@ int input_fzerofun_1d(double input,
                                           error_message),
              error_message,
              error_message);
-
+  //printf("done with unknown_params\n");
   return _SUCCESS_;
 }
 
@@ -3688,7 +3743,7 @@ int input_try_unknown_parameters(double * unknown_parameter,
                                    errmsg),
              errmsg,
              errmsg);
-
+  //printf("i'm going to input_read_parameters\n");
   class_call(input_read_parameters(&(pfzw->fc),
                                    &pr,
                                    &ba,
@@ -3703,7 +3758,7 @@ int input_try_unknown_parameters(double * unknown_parameter,
                                    errmsg),
              errmsg,
              errmsg);
-
+  //printf("done with input_read_parameters\n");
   class_call(parser_read_int(&(pfzw->fc),
                              "input_verbose",
                              &param,
@@ -3717,6 +3772,17 @@ int input_try_unknown_parameters(double * unknown_parameter,
   else
     input_verbose = 0;
 
+  //CS
+  if (input_verbose>0) {
+    printf("     -> scalar parameters: m= %g eV, f=%g Mpl, phi(0)=%g Mpl, phip(0)=%g Mpl/Mpc\n",
+	   ba.scf_m/_eV_Mpc_,
+	   ba.scf_f/_sqrt_8pi_,
+	   ba.phi_ini_scf/_sqrt_8pi_,
+	   ba.phi_prime_ini_scf/_sqrt_8pi_);
+    printf("     -> the fluid approx is switched on after %g times critical time.\n", ba.scf_tau_end_over_tau_crit);
+  }
+  //SC
+  
   /** - Optimise flags for sigma8 calculation.*/
   for (i=0; i < unknown_parameters_size; i++) {
     if (pfzw->target_name[i] == sigma8) {
@@ -3748,7 +3814,9 @@ int input_try_unknown_parameters(double * unknown_parameter,
                errmsg
                );
   }
-
+  if (input_verbose>2)
+      printf("Stage 1: background done\n");
+  
   if (pfzw->required_computation_stage >= cs_thermodynamics){
     if (input_verbose>2)
       printf("Stage 2: thermodynamics\n");
@@ -3816,8 +3884,17 @@ int input_try_unknown_parameters(double * unknown_parameter,
                       );
   }
 
+  //cs
+  /* if (input_verbose>2) */
+  /*   printf("about to put variables into output\n"); */
+
   /** - Get the corresponding shoot variable and put into output */
   for (i=0; i < pfzw->target_size; i++) {
+    //printf("i=%d, target name=%s.\n",i,pfzw->target_name[i]);
+    //printf("i=%d\n",i);
+    /* printf("likely to crash\n"); */
+    //printf("target name=%d.\n",pfzw->target_name[i]);  
+    /* printf("is it crashed?\n"); */
     switch (pfzw->target_name[i]) {
     case theta_s:
       output[i] = 100.*th.rs_rec/th.ra_rec-pfzw->target_value[i];
@@ -3838,11 +3915,27 @@ int input_try_unknown_parameters(double * unknown_parameter,
         rho_dr_today = 0.;
       output[i] = (rho_dcdm_today+rho_dr_today)/(ba.H0*ba.H0)-pfzw->target_value[i]/ba.h/ba.h;
       break;
-    case Omega_scf:
+    case phi_ini_scf:
       /** - In case scalar field is used to fill, pba->Omega0_scf is not equal to pfzw->target_value[i].*/
-      printf("****with phi(0)=%g, I got %g instead of the wanted value %g\n",  ba.background_table[ba.index_bg_rho_scf], ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0), ba.Omega0_scf);//CS SC
-      output[i] = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0)
-        -ba.Omega0_scf;
+
+      /* FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau_after.txt", "a"); */
+      /* if (f ==NULL){ */
+      /* 	printf("error creating log file.\n"); */
+      /* 	exit(1); */
+      /* } */
+      /* int tmp_i; */
+      /* for (tmp_i=0; tmp_i<ba.bt_size; tmp_i++){ */
+      /* 	fprintf(f, "%g %g\n", */
+      /* 		ba.background_table[tmp_i*ba.bg_size+ba.index_bg_a], */
+      /* 		ba.background_table[tmp_i*ba.bg_size+ba.index_bg_rho_scf]); */
+      /* } */
+      /* fclose(f); */
+      
+      /* printf("****phi(0)=%g, I got %g computed instead of the input value %g\n", */
+      /* 	     ba.background_table[ba.index_bg_phi_scf], */
+      /* 	     ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0), */
+      /* 	     ba.Omega0_scf);//CS SC */
+      output[i] = ba.background_table[(ba.bt_size-1)*ba.bg_size+ba.index_bg_rho_scf]/(ba.H0*ba.H0) -ba.Omega0_scf;      
       break;
     case Omega_ini_dcdm:
     case omega_ini_dcdm:
@@ -3929,6 +4022,7 @@ int input_get_guess(double *xguess,
              errmsg,
              errmsg);
 
+  //printf("i'm going to get input guess.\n");
   class_call(input_read_parameters(&(pfzw->fc),
                                    &pr,
                                    &ba,
@@ -3997,32 +4091,12 @@ int input_get_guess(double *xguess,
       dxdy[index_guess] = 1./a_decay/ba.h/ba.h;
       //printf("x = Omega_ini_guess = %g, dxdy = %g\n",*xguess,*dxdy);
       break;
-    case Omega_scf:
 
-      /** - This guess is arbitrary, something nice using WKB should be implemented.
-       *
-       * - Version 2: use a fit: `xguess[index_guess] = 1.77835*pow(ba.Omega0_scf,-2./7.);
-       * dxdy[index_guess] = -0.5081*pow(ba.Omega0_scf,-9./7.)`;
-       *
-       * - Version 3: use attractor solution */
-      //CS
-      /* if (ba.scf_tuning_index == 0){ */
-      /*   xguess[index_guess] = sqrt(3.0/ba.Omega0_scf); */
-      /*   dxdy[index_guess] = -0.5*sqrt(3.0)*pow(ba.Omega0_scf,-1.5); */
-      /* } */
-      /* else{ */
-      /*   /\* Default: take the passed value as xguess and set dxdy to 1. *\/ */
-      /*   xguess[index_guess] = ba.scf_parameters[ba.scf_tuning_index]; */
-      /*   dxdy[index_guess] = 1.; */
-      /* } */
-      /* break; */
-      
-      xguess[index_guess] = ba.scf_parameters[ba.scf_tuning_index];
-      //dxdy[index_guess] = 1.;
-      //dxdy[index_guess] = 5e-5;
-      //dxdy[index_guess] = 1e-3;
-      //dxdy[index_guess] = 1e-4;
-      dxdy[index_guess] = 1e-1;
+      //SC
+      //case Omega_scf:
+    case phi_ini_scf:     
+      xguess[index_guess] = ba.Omega0_scf;
+      dxdy[index_guess] = -10.;
       /*the step is tweaked so that it's fast enough but doesn't result in negative phi(0)
       /*might need to be tweaked later to be rubust for MCMC scans. */
       break;
@@ -4079,10 +4153,12 @@ int input_find_root(double *xzero,
   /** Summary: */
 
   /** - Fisrt we do our guess */
+  //printf("about to guess\n");
   class_call(input_get_guess(&x1, &dxdy, pfzw, errmsg),
              errmsg, errmsg);
-  //      printf("x1= %g\n",x1);
+  //printf("x1= %g\n",x1);
 
+  //printf("about to run fzerofun_1d\n");
   class_call(input_fzerofun_1d(x1,
                                pfzw,
                                &f1,
@@ -4095,6 +4171,7 @@ int input_find_root(double *xzero,
   dx = 1.5*f1*dxdy;
 
   /** - Then we do a linear hunt for the boundaries */
+  //printf("about to do linear hunt\n");
   for (iter=1; iter<=15; iter++){
     //x2 = x1 + search_dir*dx;
     x2 = x1 - dx;
@@ -4129,7 +4206,8 @@ int input_find_root(double *xzero,
     x1 = x2;
     f1 = f2;
   }
-
+  //printf("done with linear hunt, about to run Ridders\n");
+  
   /** - Find root using Ridders method. (Exchange for bisection if you are old-school.)*/
   class_call(class_fzero_ridder(input_fzerofun_1d,
                                 x1,
@@ -4142,7 +4220,7 @@ int input_find_root(double *xzero,
                                 fevals,
                                 errmsg),
              errmsg,errmsg);
-
+  //printf("done with Riddlers.\n");
   return _SUCCESS_;
 }
 
@@ -4170,7 +4248,8 @@ int input_auxillary_target_conditions(struct file_content * pfc,
   switch (target_name){
   case Omega_dcdmdr:
   case omega_dcdmdr:
-  case Omega_scf:
+    //case Omega_scf:
+  case phi_ini_scf:
   case Omega_ini_dcdm:
   case omega_ini_dcdm:
     /* Check that Omega's or omega's are nonzero: */

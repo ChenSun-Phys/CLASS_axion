@@ -353,8 +353,10 @@ int background_functions(
 
   /* Scalar field */
   if (pba->has_scf == _TRUE_) {
-    scf_m = pba->scf_parameters[0];
-    scf_end_of_scf = pba->scf_parameters[2];
+    //scf_m = pba->scf_parameters[0];
+    scf_m = pba->scf_m;
+    //scf_end_of_scf = pba->scf_parameters[2];
+    scf_end_of_scf = pba->scf_tau_end_over_tau_crit;
     scf_tau_crit = sqrt(2./scf_m*_scf_tau_eq_/_scf_a_eq_);
     scf_a_crit = sqrt(2.*_scf_a_eq_/scf_m/_scf_tau_eq_);    
     /* distinguish read mode and write mode when background_functions() is called */
@@ -367,7 +369,7 @@ int background_functions(
 	if (pba->scf_fld_approx == _FALSE_) {
 	  pba->scf_flg_just_flipped = _TRUE_;
 	  /* catch the point when the flag just flipped. do matching later. */
-	  printf("!!!!the fld approximation is about to be flipped at a=%g ----\n", a_rel);
+	  /* printf("!!!!the fld approximation is about to be flipped at a=%g ----\n", a_rel); */
 	}
 	pba->scf_fld_approx = _TRUE_; 
       }
@@ -400,10 +402,11 @@ int background_functions(
       /* in write mode and flag just flipped */
       /* do the matching */
       if (pba->scf_flg_just_flipped == _TRUE_) {
-	printf("I'm about to match phi to rho_phi in %s mode. \n", (pba->scf_rec_approx_flg)? "Writing": "Reading");
+	/* printf("I'm about to match phi to rho_phi in %s mode. \n", (pba->scf_rec_approx_flg)? "Writing": "Reading"); */
 	phi = pvecback_B[pba->index_bi_phi_scf];
 	phi_prime = pvecback_B[pba->index_bi_phi_prime_scf];
-	scf_w = pba->scf_parameters[3];
+	//scf_w = pba->scf_parameters[3];
+	scf_w = pba->scf_w;
 	scf_rho = (phi_prime*phi_prime/(2*a*a) + V_scf(pba,phi))/3.;
 	scf_p = (phi_prime*phi_prime/(2*a*a) - V_scf(pba,phi))/3.;
 	
@@ -425,7 +428,8 @@ int background_functions(
       }
       else{
 	/* either in read mode (e.g. called by derivs) or the flag was flipped long time ago*/
-	scf_w = pba->scf_parameters[3]; /* input scf_w for the moment. no fancy dynamical determination of w */
+	//scf_w = pba->scf_parameters[3]; /* input scf_w for the moment. no fancy dynamical determination of w */
+	scf_w = pba->scf_w;
 	scf_rho = pvecback_B[pba->index_bi_phi_scf]; /* after the fluid appr is on, phi_scf index is rho_phi*/
 	//scf_rho = pvecback_B[pba->index_bg_rho_scf]; /* now matching is done automatically */
 	//scf_rho_prime = pvecback_B[pba->index_bi_phi_prime_scf]; /* index_bi_phi_prime_scf is ignored */
@@ -562,8 +566,10 @@ int background_functions(
   /* Derivative of total pressure w.r.t. conformal time */
   pvecback[pba->index_bg_p_tot_prime] = a*pvecback[pba->index_bg_H]*dp_dloga;
   if (pba->has_scf == _TRUE_){
-    scf_m = pba->scf_parameters[0];
-    scf_end_of_scf = pba->scf_parameters[2];
+    //scf_m = pba->scf_parameters[0];
+    scf_m = pba->scf_m;
+    //scf_end_of_scf = pba->scf_parameters[2];
+    scf_end_of_scf = pba->scf_tau_end_over_tau_crit;
     scf_tau_crit = sqrt(2./scf_m*_scf_tau_eq_/_scf_a_eq_);
     scf_a_crit = sqrt(2.*_scf_a_eq_/scf_m/_scf_tau_eq_);
     //scf_k_crit = scf_m * scf_a_crit;
@@ -956,9 +962,20 @@ int background_free_input(
       free(pba->ncdm_psd_parameters);
   }
 
-  if (pba->Omega0_scf != 0.){
-    if (pba->scf_parameters != NULL)
-      free(pba->scf_parameters);
+  //  if (pba->Omega0_scf != 0.){
+  //CS
+  if (pba->phi_ini_scf != 0.){
+    /* if (pba->scf_parameters != NULL) */
+    /*   free(pba->scf_parameters); */
+    /* CS do we need to free this? */
+    /* not pointers any more */
+    /* free(pba->phi_ini_scf); */
+    /* free(pba->phi_prime_ini_scf); */
+    /* free(pba->scf_m); */
+    /* free(pba->scf_f); */
+    /* free(pba->scf_w); */
+    /* free(pba->scf_tau_end_over_tau_crit); */
+    /* free(pba->Omega0_scf); */
   }
   return _SUCCESS_;
 }
@@ -1009,7 +1026,10 @@ int background_indices(
       pba->has_dr = _TRUE_;
   }
 
-  if (pba->Omega0_scf != 0.)
+  /* if (pba->Omega0_scf != 0.) */
+  /*   pba->has_scf = _TRUE_; */
+  //CS
+  if (pba->phi_ini_scf != 0.)
     pba->has_scf = _TRUE_;
 
   if (pba->Omega0_lambda != 0.)
@@ -1894,18 +1914,29 @@ int background_solve(
     pvecback_integration[pba->index_bi_tau]=tau_end;
 
     //CS
-    /* if (pba->has_scf == _TRUE_){ */
-    /*   //tmp2 = pvecback_integration[pba->index_bi_phi_scf]; */
-    /*   FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau_after.txt", "a"); */
-    /*   if (f ==NULL){ */
-    /* 	printf("error creating log file.\n"); */
-    /* 	exit(1); */
-    /*   } */
-    /*   //fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback_integration[pba->index_bi_phi_scf]); */
-    /*   fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback[pba->index_bg_rho_scf]);  */
-    /*   fclose(f); */
+    if (pba->has_scf == _TRUE_){
+      //tmp2 = pvecback_integration[pba->index_bi_phi_scf];
+      /* FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau_after.txt", "a"); */
+      /* if (f ==NULL){ */
+      /* 	printf("error creating log file.\n"); */
+      /* 	exit(1); */
+      /* } */
+      /* //fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback_integration[pba->index_bi_phi_scf]); */
+      /* fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback[pba->index_bg_rho_scf]); */
+      /* fclose(f); */
       
-    /* } */
+
+      /* f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_V_of_tau_after.txt", "a"); */
+      /* if (f ==NULL){ */
+      /* 	printf("error creating log file.\n"); */
+      /* 	exit(1); */
+      /* } */
+      /* //fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback_integration[pba->index_bi_phi_scf]); */
+      /* fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], V_scf(pba, pvecback[pba->index_bg_phi_scf])); */
+      /* fclose(f); */
+      
+    }
+
     //SC
   }
 
@@ -2102,10 +2133,16 @@ int background_solve(
                pvecback[pba->index_bg_rho_lambda]/pvecback[pba->index_bg_rho_crit], pba->Omega0_lambda);
       printf("     -> parameters: [lambda, alpha, A, B] = \n");
       printf("                    [");
-      for (i=0; i<pba->scf_parameters_size-1; i++){
-        printf("%.3f, ",pba->scf_parameters[i]);
-      }
-      printf("%.3f]\n",pba->scf_parameters[pba->scf_parameters_size-1]);
+      /* for (i=0; i<pba->scf_parameters_size-1; i++){ */
+      /*   printf("%.3f, ",pba->scf_parameters[i]); */
+      /* } */
+      //printf("%.3f]\n",pba->scf_parameters[pba->scf_parameters_size-1]);
+      printf("     -> parameters: m= %g eV, f=%g Mpl, phi(0)=%g Mpl, phip(0)=%g Mpl/Mpc\n",
+	     pba->scf_m/_eV_Mpc_,
+	     pba->scf_f/_sqrt_8pi_,
+	     pba->phi_ini_scf/_sqrt_8pi_,
+	     pba->phi_prime_ini_scf/_sqrt_8pi_);
+      printf("     -> the fluid approx is switched on after %g times critical time.\n", pba->scf_tau_end_over_tau_crit);
     }
   }
 
@@ -2255,43 +2292,14 @@ int background_initial_conditions(
 
   }
 
-  /** - Fix initial value of \f$ \phi, \phi' \f$
-   * set directly in the radiation attractor => fixes the units in terms of rho_ur
-   *
-   * TODO:
-   * - 
-   */
   if(pba->has_scf == _TRUE_){
     //pba->scf_fld_approx = _FALSE_; /* set i.c. to use field description */
     //pvecback_integration[pba->index_bi_phi_switch_scf] = (double)_FALSE_;
-    scf_m = pba->scf_parameters[0];
-
-    //CS: the attractor solution is broken as I changed the potential. to be removed
-    if(pba->attractor_ic_scf == _TRUE_){
-      class_test(1.<2., 
-               pba->error_message,
-		 "attractor solution is not implemented. change attractor_ic_scf to false.");
-      pvecback_integration[pba->index_bi_phi_scf] = -1/scf_m*
-        log(rho_rad*4./(3*pow(scf_m,2)-12))*pba->phi_ini_scf;
-      if (3.*pow(scf_m,2)-12. < 0){
-        /** - --> If there is no attractor solution for scf_m, assign some value. Otherwise would give a nan.*/
-    	pvecback_integration[pba->index_bi_phi_scf] = 1./scf_m;//seems to the work
-        if (pba->background_verbose > 0)
-          printf(" No attractor IC for lambda = %.3e ! \n ",scf_m);
-      }
-      pvecback_integration[pba->index_bi_phi_prime_scf] = 2*pvecback_integration[pba->index_bi_a]*
-        sqrt(V_scf(pba,pvecback_integration[pba->index_bi_phi_scf]))*pba->phi_prime_ini_scf;
-    }
-    else{
-      printf("Not using attractor initial conditions\n");
-      /** - --> If no attractor initial conditions are assigned, gets the provided ones. */
-      pvecback_integration[pba->index_bi_phi_scf] = pba->phi_ini_scf;
-      pvecback_integration[pba->index_bi_phi_prime_scf] = pba->phi_prime_ini_scf;
-      //CSSC
-      printf("initial condition: %g, %g\n",
-	     pvecback_integration[pba->index_bi_phi_scf],
-	     pvecback_integration[pba->index_bi_phi_prime_scf]);
-    }
+    //scf_m = pba->scf_parameters[0];
+    scf_m = pba->scf_m;
+    pvecback_integration[pba->index_bi_phi_scf] = pba->phi_ini_scf;
+    pvecback_integration[pba->index_bi_phi_prime_scf] = pba->phi_prime_ini_scf;
+    
     class_test(!isfinite(pvecback_integration[pba->index_bi_phi_scf]) ||
                !isfinite(pvecback_integration[pba->index_bi_phi_scf]),
                pba->error_message,
@@ -2302,7 +2310,7 @@ int background_initial_conditions(
 
   /* Infer pvecback from pvecback_integration */
   //CS
-  printf("i.c. call: i'm about to call b_func(), with %s mode.\n", (pba->scf_rec_approx_flg)? "Writing": "Reading");  
+  /* printf("i.c. call: i'm about to call b_func(), with %s mode.\n", (pba->scf_rec_approx_flg)? "Writing": "Reading");   */
   class_call(background_functions(pba, pvecback_integration, pba->normal_info, pvecback),
              pba->error_message,
              pba->error_message);
@@ -2692,137 +2700,41 @@ int background_derivs(
 double V_scf(
                struct background *pba,
                double phi) {
-  double scf_m = pba->scf_parameters[0];
-  double scf_f  = pba->scf_parameters[1];
-  double res = pow(phi*scf_m,  2) / 2.;
-  /* double res = pow(phi*scf_m,  2) / 2. - pow(phi, 4) *pow(scf_m /scf_f, 2) /24.; */
+  //double scf_m = pba->scf_parameters[0];
+  //double scf_f  = pba->scf_parameters[1];
+  double scf_m = pba->scf_m;
+  double scf_f  = pba->scf_f;
+  /* double res = pow(phi*scf_m,  2) / 2.; */
+  double res = pow(phi,2) * (pow(scf_m,  2) / 2. - pow(phi/scf_f, 2) *pow(scf_m, 2) /24.) ;
   return  res;
 }
   
 double dV_scf(
               struct background *pba,
               double phi) {
-  double scf_m = pba->scf_parameters[0];
-  double scf_f  = pba->scf_parameters[1];
-  double res = phi*pow(scf_m,  2);
-  /* double res = phi*pow(scf_m,  2) - pow(phi, 3)*pow(scf_m /scf_f, 2) /6.; */  
+  //double scf_m = pba->scf_parameters[0];
+  //double scf_f  = pba->scf_parameters[1];
+  double scf_m = pba->scf_m;
+  double scf_f  = pba->scf_f;
+  /* double res = phi*pow(scf_m,  2); */
+  double res = phi*(pow(scf_m,  2) - pow(phi/scf_f, 2)*pow(scf_m, 2) /6.) ;
   return  res;
 }
 
 double ddV_scf(
                struct background *pba,
                double phi) {
-  double scf_m = pba->scf_parameters[0];
-  double scf_f  = pba->scf_parameters[1];
-  double res = pow(scf_m,  2);
-  /* double res = pow(scf_m,  2) - pow(phi, 2)*pow(scf_m /scf_f, 2) /2.; */  
+  //double scf_m = pba->scf_parameters[0];
+  //double scf_f  = pba->scf_parameters[1];
+  double scf_m = pba->scf_m;
+  double scf_f  = pba->scf_f;
+  /* double res = pow(scf_m,  2); */
+  double res = pow(scf_m,  2) - pow(phi/scf_f, 2)*pow(scf_m, 2) /2.;
   return  res;
 }
 
 //SC
   
-/* double V_e_scf(struct background *pba, */
-/*                double phi */
-/*                ) { */
-/*   double scf_m = pba->scf_parameters[0]; */
-/*   //  double scf_f  = pba->scf_parameters[1]; */
-/*   //  double scf_A      = pba->scf_parameters[2]; */
-/*   //  double scf_B      = pba->scf_parameters[3]; */
-
-/*   return  exp(-scf_m*phi); */
-/* } */
-
-/* double dV_e_scf(struct background *pba, */
-/*                 double phi */
-/*                 ) { */
-/*   double scf_m = pba->scf_parameters[0]; */
-/*   //  double scf_f  = pba->scf_parameters[1]; */
-/*   //  double scf_A      = pba->scf_parameters[2]; */
-/*   //  double scf_B      = pba->scf_parameters[3]; */
-
-/*   return -scf_m*V_scf(pba,phi); */
-/* } */
-
-/* double ddV_e_scf(struct background *pba, */
-/*                  double phi */
-/*                  ) { */
-/*   double scf_m = pba->scf_parameters[0]; */
-/*   //  double scf_f  = pba->scf_parameters[1]; */
-/*   //  double scf_A      = pba->scf_parameters[2]; */
-/*   //  double scf_B      = pba->scf_parameters[3]; */
-
-/*   return pow(-scf_m,2)*V_scf(pba,phi); */
-/* } */
-
-
-
-/** parameters and functions for the polynomial coefficient
- * \f$ V_p = (\phi - B)^\alpha + A \f$(polynomial bump)
- *
- * double scf_f = 2;
- *
- * double scf_B = 34.8;
- *
- * double scf_A = 0.01; (values for their Figure 2)
- */
-
-/* double V_p_scf( */
-/*                struct background *pba, */
-/*                double phi) { */
-/*   //  double scf_m = pba->scf_parameters[0]; */
-/*   double scf_f  = pba->scf_parameters[1]; */
-/*   double scf_A      = pba->scf_parameters[2]; */
-/*   double scf_B      = pba->scf_parameters[3]; */
-
-/*   return  pow(phi - scf_B,  scf_f) +  scf_A; */
-/*   // return  scf_A; */
-/* } */
-
-/* double dV_p_scf( */
-/*                 struct background *pba, */
-/*                 double phi) { */
-
-/*   //  double scf_m = pba->scf_parameters[0]; */
-/*   double scf_f  = pba->scf_parameters[1]; */
-/*   //  double scf_A      = pba->scf_parameters[2]; */
-/*   double scf_B      = pba->scf_parameters[3]; */
-
-/*   return   scf_f*pow(phi -  scf_B,  scf_f - 1); */
-/*   //return 0.; */
-/* } */
-
-/* double ddV_p_scf( */
-/*                  struct background *pba, */
-/*                  double phi) { */
-/*   //  double scf_m = pba->scf_parameters[0]; */
-/*   double scf_f  = pba->scf_parameters[1]; */
-/*   //  double scf_A      = pba->scf_parameters[2]; */
-/*   double scf_B      = pba->scf_parameters[3]; */
-
-/*   return  scf_f*(scf_f - 1.)*pow(phi -  scf_B,  scf_f - 2); */
-/*   //return 0.; */
-/* } */
-
-/* /\** Fianlly we can obtain the overall potential \f$ V = V_p*V_e \f$ */
-/*  *\/ */
-
-/* double V_scf( */
-/*              struct background *pba, */
-/*              double phi) { */
-/*   return  V_e_scf(pba,phi)*V_p_scf(pba,phi); */
-/* } */
-
-/* double dV_scf( */
-/*               struct background *pba, */
-/*               double phi) { */
-/*   return dV_e_scf(pba,phi)*V_p_scf(pba,phi) + V_e_scf(pba,phi)*dV_p_scf(pba,phi); */
-/* } */
-
-/* double ddV_scf( */
-/*                struct background *pba, */
-/*                double phi) { */
-/*   return ddV_e_scf(pba,phi)*V_p_scf(pba,phi) + 2*dV_e_scf(pba,phi)*dV_p_scf(pba,phi) + V_e_scf(pba,phi)*ddV_p_scf(pba,phi); */
-/* } */
 
 /**
  * Function outputting the fractions Omega of the total critical density
