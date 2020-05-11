@@ -1890,11 +1890,12 @@ int background_solve(
 
       /* store rho_phi inside phi here only after gTable is stored */
       if (pba->scf_flg_just_flipped == _TRUE_){
-	pvecback_integration[pba->index_bi_phi_scf] = pvecback[pba->index_bg_phi_scf];
+	//Store the flipping point for perturbation module
+	pba->scf_tau_crit = tau_start;
+       	pvecback_integration[pba->index_bi_phi_scf] = pvecback[pba->index_bg_phi_scf];
 	//pvecback_integration[pba->index_bi_phi_prime_scf] = 0.; //seems not important. 
-	//pvecback_integration[pba->index_bi_phi_scf] = pvecback[pba->index_bg_rho_scf];
 	pba->scf_flg_just_flipped = _FALSE_;
-      }      
+      }
     //SC
     }
 
@@ -1914,28 +1915,28 @@ int background_solve(
     pvecback_integration[pba->index_bi_tau]=tau_end;
 
     //CS
-    if (pba->has_scf == _TRUE_){
-      //tmp2 = pvecback_integration[pba->index_bi_phi_scf];
-      /* FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau_after.txt", "a"); */
-      /* if (f ==NULL){ */
-      /* 	printf("error creating log file.\n"); */
-      /* 	exit(1); */
-      /* } */
-      /* //fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback_integration[pba->index_bi_phi_scf]); */
-      /* fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback[pba->index_bg_rho_scf]); */
-      /* fclose(f); */
+    /* if (pba->has_scf == _TRUE_){ */
+    /*   //tmp2 = pvecback_integration[pba->index_bi_phi_scf]; */
+    /*   FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau_after.txt", "a"); */
+    /*   if (f ==NULL){ */
+    /*   	printf("error creating log file.\n"); */
+    /*   	exit(1); */
+    /*   } */
+    /*   //fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback_integration[pba->index_bi_phi_scf]); */
+    /*   fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback[pba->index_bg_rho_scf]); */
+    /*   fclose(f); */
       
 
-      /* f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_V_of_tau_after.txt", "a"); */
-      /* if (f ==NULL){ */
-      /* 	printf("error creating log file.\n"); */
-      /* 	exit(1); */
-      /* } */
-      /* //fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback_integration[pba->index_bi_phi_scf]); */
-      /* fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], V_scf(pba, pvecback[pba->index_bg_phi_scf])); */
-      /* fclose(f); */
+    /*   /\* f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_V_of_tau_after.txt", "a"); *\/ */
+    /*   /\* if (f ==NULL){ *\/ */
+    /*   /\* 	printf("error creating log file.\n"); *\/ */
+    /*   /\* 	exit(1); *\/ */
+    /*   /\* } *\/ */
+    /*   /\* //fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback_integration[pba->index_bi_phi_scf]); *\/ */
+    /*   /\* fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], V_scf(pba, pvecback[pba->index_bg_phi_scf])); *\/ */
+    /*   /\* fclose(f); *\/ */
       
-    }
+    /* } */
 
     //SC
   }

@@ -768,7 +768,8 @@ int perturb_init(
 #ifdef _OPENMP
           tstart = omp_get_wtime();
 #endif
-
+	  //CS
+	  //printf("about to solve()\n");
           class_call_parallel(perturb_solve(ppr,
                                             pba,
                                             pth,
@@ -779,6 +780,8 @@ int perturb_init(
                                             pppw[thread]),
                               ppt->error_message,
                               ppt->error_message);
+	  //printf("done solving.\n");
+	  //SC
 
 #ifdef _OPENMP
           tstop = omp_get_wtime();
@@ -1900,12 +1903,15 @@ int perturb_get_k_list(
 
     k_rec = 2. * _PI_ / pth->rs_rec; /* comoving scale corresponding to sound horizon at recombination */
 
+    //CS
+    //k_min = 0.95;
+    //SC
     k_max_cmb[ppt->index_md_scalars] = k_min;
     k_max_cl[ppt->index_md_scalars] = k_min;
     k_max = k_min;
 
     if (ppt->has_cls == _TRUE_) {
-
+      
       /* find k_max_cmb[ppt->index_md_scalars] : */
 
       /* choose a k_max_cmb[ppt->index_md_scalars] corresponding to a wavelength on the last
@@ -1944,9 +1950,14 @@ int perturb_get_k_list(
     }
 
     /* find k_max: */
-
-    if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_nl_corrections_based_on_delta_m == _TRUE_))
+    printf("---- before, k_min=%g,k_max=%g\n",k_min,k_max);
+    if ((ppt->has_pk_matter == _TRUE_) || (ppt->has_density_transfers == _TRUE_) || (ppt->has_velocity_transfers == _TRUE_) || (ppt->has_nl_corrections_based_on_delta_m == _TRUE_)){
       k_max = MAX(k_max,ppt->k_max_for_pk);
+      //CS
+      //k_min = 0.95*k_max;
+      //SC
+      printf("---- after, k_min=%g,k_max=%g\n",k_min,k_max);
+    }
 
     /** - --> test that result for k_min, k_max make sense */
 
@@ -1983,6 +1994,8 @@ int perturb_get_k_list(
     }
 
     else{
+      printf("----- k # for cmb = %g\n",((k_max_cmb[ppt->index_md_scalars]-k_min)/k_rec/MIN(ppr->k_step_super,ppr->k_step_sub)));
+      printf("----- k # for mPk = %g\n", (MAX(ppr->k_per_decade_for_pk,ppr->k_per_decade_for_bao)*log(k_max/k_min)/log(10.))+3);
       class_alloc(ppt->k[ppt->index_md_scalars],
                   ((int)((k_max_cmb[ppt->index_md_scalars]-k_min)/k_rec/MIN(ppr->k_step_super,ppr->k_step_sub))+
                    (int)(MAX(ppr->k_per_decade_for_pk,ppr->k_per_decade_for_bao)*log(k_max/k_min)/log(10.))+3)
@@ -2576,7 +2589,11 @@ int perturb_workspace_init(
     class_define_index(ppw->index_ap_ncdmfa,pba->has_ncdm,index_ap,1);
     class_define_index(ppw->index_ap_tca_idm_dr,pba->has_idm_dr,index_ap,1);
     class_define_index(ppw->index_ap_rsa_idr,pba->has_idr,index_ap,1);
-
+    //CS
+    //printf("index_ap=%d\n",index_ap);
+    class_define_index(ppw->index_ap_scf,pba->has_scf,index_ap,1);
+    //printf("index_ap=%d\n",index_ap);
+    //SC
   }
 
   ppw->ap_size=index_ap;
@@ -2604,6 +2621,11 @@ int perturb_workspace_init(
     if (pba->has_ncdm == _TRUE_) {
       ppw->approx[ppw->index_ap_ncdmfa]=(int)ncdmfa_off;
     }
+    //CS
+    if (pba->has_scf == _TRUE_) {
+      ppw->approx[ppw->index_ap_scf]=(int)scf_on;
+    }
+    //SC
   }
 
   if (_tensors_) {
@@ -2905,7 +2927,8 @@ int perturb_solve(
   class_alloc(interval_number_of,ppw->ap_size*sizeof(int),ppt->error_message);
 
   ppw->inter_mode = pba->inter_normal;
-
+  
+  //printf("---- about to find approx number()\n");
   class_call(perturb_find_approximation_number(ppr,
                                                pba,
                                                pth,
@@ -2919,14 +2942,14 @@ int perturb_solve(
                                                interval_number_of),
              ppt->error_message,
              ppt->error_message);
-
+  //printf("++++ finished finding approx number()\n");
   class_alloc(interval_limit,(interval_number+1)*sizeof(double),ppt->error_message);
 
   class_alloc(interval_approx,interval_number*sizeof(int*),ppt->error_message);
 
   for (index_interval=0; index_interval<interval_number; index_interval++)
     class_alloc(interval_approx[index_interval],ppw->ap_size*sizeof(int),ppt->error_message);
-
+  //printf("---- about to find approx switches()\n");
   class_call(perturb_find_approximation_switches(ppr,
                                                  pba,
                                                  pth,
@@ -2943,7 +2966,7 @@ int perturb_solve(
                                                  interval_approx),
              ppt->error_message,
              ppt->error_message);
-
+  //printf("++++ finished finding approx switches()\n");
   free(interval_number_of);
 
   /** - fill the structure containing all fixed parameters, indices
@@ -2965,6 +2988,7 @@ int perturb_solve(
   /** - check whether we need to print perturbations to a file for this wavenumber */
 
   perhaps_print_variables = NULL;
+  //perhaps_print_variables = perturb_print_variables;
   ppw->index_ikout = -1;
   for (index_ikout=0; index_ikout<ppt->k_output_values_num; index_ikout++){
     if (ppt->index_k_output_values[index_md*ppt->k_output_values_num+index_ikout] == index_k){
@@ -3001,7 +3025,7 @@ int perturb_solve(
         mode. If it starts from an approximation switching point,
         redistribute correctly the perturbations from the previous to
         the new vector of perturbations. */
-
+    //printf("---- about to perturb_vector_init()\n");
     class_call(perturb_vector_init(ppr,
                                    pba,
                                    pth,
@@ -3014,7 +3038,7 @@ int perturb_solve(
                                    previous_approx),
                ppt->error_message,
                ppt->error_message);
-
+    //printf("++++ done calling perturb_vector_init()\n");
     /** - --> (d) integrate the perturbations over the current interval. */
 
     if(ppr->evolver == rk){
@@ -3023,7 +3047,15 @@ int perturb_solve(
     else{
       generic_evolver = evolver_ndf15;
     }
-
+    //CS
+    /* printf("this is interval %d/%d.", index_interval+1,interval_number); */
+    /* int tmp_i; */
+    /* for (tmp_i=0; tmp_i<ppw->ap_size; tmp_i++){ */
+    /*   printf("ap: %d.", ppw->approx[tmp_i]);       */
+    /* } */
+    /* printf("\n"); */
+    //SC
+    printf("about to integrate, pba->has_scf=%d\n", pba->has_scf);
     class_call(generic_evolver(perturb_derivs,
                                interval_limit[index_interval],
                                interval_limit[index_interval+1],
@@ -3042,7 +3074,24 @@ int perturb_solve(
                                ppt->error_message),
                ppt->error_message,
                ppt->error_message);
+    printf("done integrating\n");
+    //CS
+    /* FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau_after.txt", "a"); */
+    /* if (f ==NULL){ */
+    /* 	printf("error creating log file.\n"); */
+    /* 	exit(1); */
+    /* } */
+    /* //fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback_integration[pba->index_bi_phi_scf]); */
+    /* /\* fprintf(f, "%g %g\n", pvecback[pba->index_bg_a], pvecback[pba->index_bg_rho_scf]); *\/ */
+    /* fclose(f); */
 
+    //print to stout
+    
+    /* printf("k=%g, tau=%g, delta=%g\n", */
+    /* 	   k, */
+    /* 	   interval_limit[index_interval], //ppt->tau_sampling[index_tau], */
+    /* 	   ppt->sources[index_md][index_ic*ppt->tp_size[index_md]+ppt->index_tp_delta_scf][index_tau*ppt->k_size[index_md]+index_k]); */
+    //SC
   }
 
   /** - if perturbations were printed in a file, close the file */
@@ -3504,6 +3553,14 @@ int perturb_find_approximation_switches(
 
         if (_scalars_) {
 
+	  //CS
+          if (pba->has_scf == _TRUE_){
+	    if ((interval_approx[index_switch-1][ppw->index_ap_scf]==(int)scf_on) &&
+              (interval_approx[index_switch][ppw->index_ap_scf]==(int)scf_off))
+            fprintf(stdout,"Mode k=%e: will switch on fluid approximation for phi at tau=%e\n",k,interval_limit[index_switch]);
+	  }
+	  //SC
+
           if ((interval_approx[index_switch-1][ppw->index_ap_tca]==(int)tca_on) &&
               (interval_approx[index_switch][ppw->index_ap_tca]==(int)tca_off))
             fprintf(stdout,"Mode k=%e: will switch off tight-coupling approximation at tau=%e\n",k,interval_limit[index_switch]);
@@ -3745,9 +3802,20 @@ int perturb_vector_init(
     }
 
     /* scalar field */
-
-    class_define_index(ppv->index_pt_phi_scf,pba->has_scf,index_pt,1); /* scalar field density */
-    class_define_index(ppv->index_pt_phi_prime_scf,pba->has_scf,index_pt,1); /* scalar field velocity */
+    if (pba->has_scf==_TRUE_){
+      //printf("-------- has scf\n");
+      if (ppw->approx[ppw->index_ap_scf] == (int)scf_on) {
+	class_define_index(ppv->index_pt_phi_scf,_TRUE_,index_pt,1); /* scalar field density */
+	class_define_index(ppv->index_pt_phi_prime_scf,_TRUE_,index_pt,1); /* scalar field velocity 
+										  * things to be actually integrated */
+      }
+      else{
+	/* need to change it to delta_rho delta_p later  */
+	//printf("not implemented yet. you should not be here.\n");
+	class_define_index(ppv->index_pt_phi_scf,_TRUE_,index_pt,1); 
+	class_define_index(ppv->index_pt_phi_prime_scf,_TRUE_,index_pt,1);       
+      }
+    }
 
     /* perturbed recombination: the indices are defined once tca is off. */
     if ( (ppt->has_perturbed_recombination == _TRUE_) && (ppw->approx[ppw->index_ap_tca] == (int)tca_off) ){
@@ -3951,6 +4019,15 @@ int perturb_vector_init(
 
   if (_scalars_) {
 
+    //CS
+    /* if (pba->has_scf == _TRUE_) { */
+    /*   if (ppw->approx[ppw->index_ap_scf] == (int)scf_off){ */
+    /* 	ppv->used_in_sources[ppv->index_pt_phi_scf]=_FALSE_; */
+    /* 	ppv->used_in_sources[ppv->index_pt_phi_prime_scf]=_FALSE_; */
+    /*   } */
+    /* } */
+    //SC
+
     if (ppw->approx[ppw->index_ap_rsa] == (int)rsa_off) {
 
       if (ppw->approx[ppw->index_ap_tca] == (int)tca_off) {
@@ -4095,6 +4172,18 @@ int perturb_vector_init(
                  ppt->error_message,
                  "scalar initial conditions assume tight-coupling approximation turned on");
 
+      //CS
+      /* if (pba->has_scf ==_TRUE_){ */
+      /* 	if (ppw->approx[ppw->index_ap_scf] == (int)scf_off){ */
+      /* 	  printf("scf-off at k=%g, tau=%g\n", k, tau); */
+      /* 	} */
+      /* 	class_test(ppw->approx[ppw->index_ap_scf] == (int)scf_off, */
+      /* 		   ppt->error_message, */
+      /* 		   "scalar field initial conditions assume fluid approximation turned on");	 */
+      /* } */
+      //SC seems there's no need for this test.
+      // bc for very small k, the starting tau is large enough that scf is already off
+
     }
 
     if (_tensors_) {
@@ -4151,6 +4240,14 @@ int perturb_vector_init(
                    ppt->error_message,
                    "at tau=%g: the dark tight-coupling approximation can be switched off, not on",tau);
       }
+
+      //CS
+      if (pba->has_scf == _TRUE_){
+        class_test((pa_old[ppw->index_ap_scf] == (int)scf_off) && (ppw->approx[ppw->index_ap_scf] == (int)scf_on),
+                   ppt->error_message,
+                   "at tau=%g: the axion fluid approximation can be switched on, not off",tau);
+      }
+      //SC
 
       /** - ---> (a.2.) some variables (b, cdm, fld, ...) are not affected by
           any approximation. They need to be reconducted whatever
@@ -4213,7 +4310,7 @@ int perturb_vector_init(
             ppw->pv->y[ppw->pv->index_pt_Gamma_fld];
         }
       }
-
+      /* CS: need to distinguish two cases here, whether to switch on fld approx */
       if (pba->has_scf == _TRUE_) {
 
         ppv->y[ppv->index_pt_phi_scf] =
@@ -4223,6 +4320,8 @@ int perturb_vector_init(
           ppw->pv->y[ppw->pv->index_pt_phi_prime_scf];
       }
 
+      //CS
+
       if (ppt->gauge == synchronous)
         ppv->y[ppv->index_pt_eta] =
           ppw->pv->y[ppw->pv->index_pt_eta];
@@ -4230,6 +4329,20 @@ int perturb_vector_init(
       if (ppt->gauge == newtonian)
         ppv->y[ppv->index_pt_phi] =
           ppw->pv->y[ppw->pv->index_pt_phi];
+
+      //CS
+      /* -- case of switching on fluid approximation for the axion field. 
+	 Provide correct initial conditions to new set of variables */
+      if (pba->has_scf == _TRUE_) {
+	if ((pa_old[ppw->index_ap_scf] == (int)scf_on) && (ppw->approx[ppw->index_ap_scf] == (int)scf_off)) {
+	  if (ppt->perturbations_verbose>2)
+	    fprintf(stdout,"Mode k=%e: switch fluid approximation for the axion field at tau=%e\n",k,tau);
+	  // cut it out for the moment. will adopt fluid delta_rho later. 
+	  ppv->y[ppv->index_pt_phi_scf] =0.;
+	  ppv->y[ppv->index_pt_phi_prime_scf] = 0.;
+	}
+      }
+      //SC end of scf on -> off block 
 
       /* -- case of switching off tight coupling
          approximation. Provide correct initial conditions to new set
@@ -5269,7 +5382,8 @@ int perturb_initial_conditions(struct precision * ppr,
          *  with \f$ c_s^2 = 1 \f$ and w = 1/3 (ASSUMES radiation TRACKING)
          */
 
-        ppw->pv->y[ppw->pv->index_pt_phi_scf] = 0.;
+	//CS use 1 for the moment. need to comply to CLASS normalization
+        ppw->pv->y[ppw->pv->index_pt_phi_scf] = 1.; //SC 
         /*  a*a/k/k/ppw->pvecback[pba->index_bg_phi_prime_scf]*k*ktau_three/4.*1./(4.-6.*(1./3.)+3.*1.) * (ppw->pvecback[pba->index_bg_rho_scf] + ppw->pvecback[pba->index_bg_p_scf])* ppr->curvature_ini * s2_squared; */
 
         ppw->pv->y[ppw->pv->index_pt_phi_prime_scf] = 0.;
@@ -5531,7 +5645,7 @@ int perturb_initial_conditions(struct precision * ppr,
           (-2.*a_prime_over_a*alpha*ppw->pvecback[pba->index_bg_phi_prime_scf]
            -a*a* dV_scf(pba,ppw->pvecback[pba->index_bg_phi_scf])*alpha
            +ppw->pvecback[pba->index_bg_phi_prime_scf]*alpha_prime);
-
+	//CS ??? SC
       }
 
       if ((pba->has_ur == _TRUE_) || (pba->has_ncdm == _TRUE_) || (pba->has_dr == _TRUE_)  || (pba->has_idr == _TRUE_)) {
@@ -5845,7 +5959,7 @@ int perturb_approximations(
                                    ppw->pvecthermo),
                pth->error_message,
                ppt->error_message);
-
+    
     /** - ---> (b.1.) if \f$ \kappa'=0 \f$, recombination is finished; tight-coupling approximation must be off */
 
     if (ppw->pvecthermo[pth->index_th_dkappa] == 0.) {
@@ -5973,6 +6087,19 @@ int perturb_approximations(
         ppw->approx[ppw->index_ap_ncdmfa] = (int)ncdmfa_off;
       }
     }
+    //CS
+    /** - ---> (d) determine if the axion should be described by fluid*/
+    if (pba->has_scf){
+      //printf("pba->scf_tau_crit=%g\n",pba->scf_tau_crit);
+      if (tau < pba->scf_tau_crit){
+	ppw->approx[ppw->index_ap_scf] = (int)scf_on;
+      }
+      else {
+	ppw->approx[ppw->index_ap_scf] = (int)scf_off;
+      }
+    }
+    //SC
+    
   }
 
   /** - for tensor modes: */
@@ -7461,18 +7588,25 @@ int perturb_sources(
 
     /* delta_scf */
     if (ppt->has_source_delta_scf == _TRUE_) {
-      if (ppt->gauge == synchronous){
-        delta_rho_scf =  1./3.*
-          (1./a2_rel*ppw->pvecback[pba->index_bg_phi_prime_scf]*y[ppw->pv->index_pt_phi_prime_scf]
-           + ppw->pvecback[pba->index_bg_dV_scf]*y[ppw->pv->index_pt_phi_scf])
-          + 3.*a_prime_over_a*(1.+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf])*theta_over_k2; // N-body gauge correction
+      //printf("-------- has scf\n");      
+      if (ppw->approx[ppw->index_ap_scf] == (int)scf_on) {
+	if (ppt->gauge == synchronous){
+	  delta_rho_scf =  1./3.*
+	    (1./a2_rel*ppw->pvecback[pba->index_bg_phi_prime_scf]*y[ppw->pv->index_pt_phi_prime_scf]
+	     + ppw->pvecback[pba->index_bg_dV_scf]*y[ppw->pv->index_pt_phi_scf])
+	    + 3.*a_prime_over_a*(1.+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf])*theta_over_k2; // N-body gauge correction
+	}
+	else{
+	  delta_rho_scf =  1./3.*
+	    (1./a2_rel*ppw->pvecback[pba->index_bg_phi_prime_scf]*y[ppw->pv->index_pt_phi_prime_scf]
+	     + ppw->pvecback[pba->index_bg_dV_scf]*y[ppw->pv->index_pt_phi_scf]
+	     - 1./a2_rel*pow(ppw->pvecback[pba->index_bg_phi_prime_scf],2)*ppw->pvecmetric[ppw->index_mt_psi])
+	    + 3.*a_prime_over_a*(1.+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf])*theta_over_k2; // N-body gauge correction
+	}
       }
       else{
-        delta_rho_scf =  1./3.*
-          (1./a2_rel*ppw->pvecback[pba->index_bg_phi_prime_scf]*y[ppw->pv->index_pt_phi_prime_scf]
-           + ppw->pvecback[pba->index_bg_dV_scf]*y[ppw->pv->index_pt_phi_scf]
-           - 1./a2_rel*pow(ppw->pvecback[pba->index_bg_phi_prime_scf],2)*ppw->pvecmetric[ppw->index_mt_psi])
-          + 3.*a_prime_over_a*(1.+pvecback[pba->index_bg_p_scf]/pvecback[pba->index_bg_rho_scf])*theta_over_k2; // N-body gauge correction
+	// to be added if we care about late time delta_rho_scf
+	delta_rho_scf = 0.;
       }
       _set_source_(ppt->index_tp_delta_scf) = delta_rho_scf/pvecback[pba->index_bg_rho_scf];
     }
@@ -7586,10 +7720,14 @@ int perturb_sources(
 
     /* theta_scf */
     if (ppt->has_source_theta_scf == _TRUE_) {
-
-      rho_plus_p_theta_scf = 1./3.*
-        k*k/a2_rel*ppw->pvecback[pba->index_bg_phi_prime_scf]*y[ppw->pv->index_pt_phi_scf];
-
+      //printf("-------- has scf\n");      
+      if (ppw->approx[ppw->index_ap_scf] == (int)scf_on) {
+	rho_plus_p_theta_scf = 1./3.*
+	  k*k/a2_rel*ppw->pvecback[pba->index_bg_phi_prime_scf]*y[ppw->pv->index_pt_phi_scf];
+      }
+      else {
+	rho_plus_p_theta_scf =  0.; // to be added if we care about late time theta_scf
+      }
       _set_source_(ppt->index_tp_theta_scf) = rho_plus_p_theta_scf/(pvecback[pba->index_bg_rho_scf]+pvecback[pba->index_bg_p_scf])
         + theta_shift; // N-body gauge correction
     }
@@ -8851,17 +8989,33 @@ int perturb_derivs(double tau,
     /** - ---> scalar field (scf) */
 
     if (pba->has_scf == _TRUE_) {
+      //printf("-------- has scf\n");      
+      if (ppw->approx[ppw->index_ap_scf] == (int)scf_on) {
+	/** - ----> field value */
 
-      /** - ----> field value */
+	dy[pv->index_pt_phi_scf] = y[pv->index_pt_phi_prime_scf];
 
-      dy[pv->index_pt_phi_scf] = y[pv->index_pt_phi_prime_scf];
+	/** - ----> Klein Gordon equation */
 
-      /** - ----> Klein Gordon equation */
-
-      dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf]
-        - metric_continuity*pvecback[pba->index_bg_phi_prime_scf] //  metric_continuity = h'/2
-        - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]; //checked
-
+	/* dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf] */
+	/*   - metric_continuity*pvecback[pba->index_bg_phi_prime_scf] //  metric_continuity = h'/2 */
+	/*   - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]; //checked */
+	if (ppt->gauge == newtonian) {
+	  dy[pv->index_pt_phi_prime_scf] =  - 2.*a_prime_over_a*y[pv->index_pt_phi_prime_scf]
+	    - (k2 + a2*pvecback[pba->index_bg_ddV_scf])*y[pv->index_pt_phi_scf]
+	    - 2.*a2*pvecback[pba->index_bg_dV_scf]*pvecmetric[ppw->index_mt_psi]
+	    + (4.*pvecmetric[ppw->index_mt_phi_prime])*pvecback[pba->index_bg_phi_prime_scf];
+	}
+	if (ppt->gauge == synchronous) {
+	  class_test(0==0,
+		     ppt->error_message,
+		     "you asked for synchronous gauge. However, in the axion perturbation synchronous is not implemented yet. Change it to Newtonian.");
+	}
+      }
+      else {
+	dy[pv->index_pt_phi_scf]  = 0.;
+	dy[pv->index_pt_phi_prime_scf] = 0.; // to be added, if we care about late time delta_phi
+      }
     }
     /** - ---> interacting dark radiation */
     if (pba->has_idr == _TRUE_){

@@ -26,6 +26,9 @@
 
 //@{
 
+//CS
+enum scf_flags {scf_on, scf_off}; // scf_on, field description
+//SC
 enum tca_flags {tca_on, tca_off};
 enum rsa_flags {rsa_off, rsa_on};
 enum tca_idm_dr_flags {tca_idm_dr_on, tca_idm_dr_off};
@@ -128,6 +131,9 @@ struct perturbs
   short evolve_tensor_ur;             /**< will we evolve ur tensor perturbations (either because we have ur species, or we have ncdm species with massless approximation) ? */
   short evolve_tensor_ncdm;             /**< will we evolve ncdm tensor perturbations (if we have ncdm species and we use the exact method) ? */
 
+  /* //CS */
+  /* short has_axion;                    /\**< do we have axion perturbation? *\/ */
+  /* //SC */
   short has_cl_cmb_temperature;       /**< do we need \f$ C_l \f$'s for CMB temperature? */
   short has_cl_cmb_polarization;      /**< do we need \f$ C_l \f$'s for CMB polarization? */
   short has_cl_cmb_lensing_potential; /**< do we need \f$ C_l \f$'s for CMB lensing potential? */
@@ -614,6 +620,9 @@ struct perturb_workspace
 
   //@{
 
+  //CS
+  int index_ap_scf; /**< index for the fluid approximation of the axion field */
+  //SC
   int index_ap_tca; /**< index for tight-coupling approximation */
   int index_ap_rsa; /**< index for radiation streaming approximation */
   int index_ap_tca_idm_dr; /**< index for dark tight-coupling approximation (idm-idr) */

@@ -1660,6 +1660,12 @@ int input_read_parameters(
              errmsg);
 
   if (flag1 == _TRUE_) {
+    /* //CS */
+    /* if ((strstr(string1,"axion") != NULL) || (strstr(string1,"Axion") != NULL) || (strstr(string1,"AXION") != NULL)) { */
+    /*   ppt->has_axion = _TRUE_; */
+    /*   ppt->has_perturbations = _TRUE_; */
+    /* } */
+    /* //SC     */
 
     if ((strstr(string1,"tCl") != NULL) || (strstr(string1,"TCl") != NULL) || (strstr(string1,"TCL") != NULL)) {
       ppt->has_cl_cmb_temperature = _TRUE_;
@@ -3323,6 +3329,9 @@ int input_default_params(
 
   /** - perturbation structure */
 
+  /* //CS */
+  /* ppt->has_axion = _FALSE_; */
+  /* //SC */
   ppt->has_cl_cmb_temperature = _FALSE_;
   ppt->has_cl_cmb_polarization = _FALSE_;
   ppt->has_cl_cmb_lensing_potential = _FALSE_;
