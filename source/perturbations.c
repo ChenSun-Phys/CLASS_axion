@@ -3055,7 +3055,7 @@ int perturb_solve(
     /* } */
     /* printf("\n"); */
     //SC
-    printf("about to integrate, pba->has_scf=%d\n", pba->has_scf);
+    //printf("about to integrate, pba->has_scf=%d\n", pba->has_scf);
     class_call(generic_evolver(perturb_derivs,
                                interval_limit[index_interval],
                                interval_limit[index_interval+1],
@@ -3074,7 +3074,7 @@ int perturb_solve(
                                ppt->error_message),
                ppt->error_message,
                ppt->error_message);
-    printf("done integrating\n");
+    //printf("done integrating\n");
     //CS
     /* FILE *f = fopen("/a/home/cc/students/physics/chensun/tomerv_storage/Code/class_axion/test_phi_of_tau_after.txt", "a"); */
     /* if (f ==NULL){ */
