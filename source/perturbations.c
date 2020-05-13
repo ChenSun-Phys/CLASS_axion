@@ -2879,7 +2879,12 @@ int perturb_solve(
                                  ppw->pvecback),
                pba->error_message,
                ppt->error_message);
-
+    /* CS: if there are axion field scf, need to start evolving the perturbation before scf_on is switched off.*/
+    if (pba->has_scf == _TRUE_) {
+      if ((tau_mid< pba->scf_tau_crit) && (k>1e-2)) is_early_enough = _FALSE_;
+    }
+    /* SC */
+    
     /* if there are non-cold relics, check that they are relativistic enough */
     if (pba->has_ncdm == _TRUE_) {
       for (n_ncdm=0; n_ncdm < pba->N_ncdm; n_ncdm++) {
@@ -2920,6 +2925,10 @@ int perturb_solve(
 
   }
 
+  //CS
+  if (k>1e-2)
+    printf("---- k=%g, tau_start=%g\n", k, tau_mid);
+  //SC
   tau = tau_mid;
 
   /** - find the number of intervals over which approximation scheme is constant */
@@ -2988,7 +2997,6 @@ int perturb_solve(
   /** - check whether we need to print perturbations to a file for this wavenumber */
 
   perhaps_print_variables = NULL;
-  //perhaps_print_variables = perturb_print_variables;
   ppw->index_ikout = -1;
   for (index_ikout=0; index_ikout<ppt->k_output_values_num; index_ikout++){
     if (ppt->index_k_output_values[index_md*ppt->k_output_values_num+index_ikout] == index_k){
@@ -5341,6 +5349,8 @@ int perturb_initial_conditions(struct precision * ppr,
       /* tighly-coupled baryons */
       ppw->pv->y[ppw->pv->index_pt_delta_b] = 3./4.*ppw->pv->y[ppw->pv->index_pt_delta_g]; /* baryon density */
       ppw->pv->y[ppw->pv->index_pt_theta_b] = ppw->pv->y[ppw->pv->index_pt_theta_g]; /* baryon velocity */
+      //CS
+      // ppw->pv->y[ppw->pv->index_pt_theta_b] = 0.; 
 
       if (pba->has_cdm == _TRUE_) {
         ppw->pv->y[ppw->pv->index_pt_delta_cdm] = 3./4.*ppw->pv->y[ppw->pv->index_pt_delta_g]; /* cdm density */
