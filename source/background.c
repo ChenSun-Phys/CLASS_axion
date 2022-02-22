@@ -1,4 +1,3 @@
-/**test signing key**/
 /** @file background.c Documented background module
  *
  * * Julien Lesgourgues, 17.04.2011
@@ -2707,7 +2706,21 @@ double V_scf(
   double scf_m = pba->scf_m;
   double scf_f  = pba->scf_f;
   /* double res = pow(phi*scf_m,  2) / 2.; */
-  double res = pow(phi,2) * (pow(scf_m,  2) / 2. - pow(phi/scf_f, 2) *pow(scf_m, 2) /24.) ;
+  double res, res_raw;
+  double V_max;
+  
+  V_max = 3./2. * pow(scf_m,2) * pow(scf_f,2);
+  res_raw = pow(phi,2) * (pow(scf_m,  2) / 2. - pow(phi/scf_f, 2) *pow(scf_m, 2) /24.) ;
+
+  /* now compute the regulated potential so that after Vmax it's bounded from below */
+  /* this is mostly relevant during the initial shooting */
+  if (phi <= sqrt(6.) * scf_f){
+    res = res_raw;
+  }
+  else{
+    res = 2.*V_max - res_raw;
+  }
+    
   return  res;
 }
   
@@ -2719,7 +2732,16 @@ double dV_scf(
   double scf_m = pba->scf_m;
   double scf_f  = pba->scf_f;
   /* double res = phi*pow(scf_m,  2); */
-  double res = phi*(pow(scf_m,  2) - pow(phi/scf_f, 2)*pow(scf_m, 2) /6.) ;
+  double res;
+
+  /* the unregulated V' */
+  res = phi*(pow(scf_m,  2) - pow(phi/scf_f, 2)*pow(scf_m, 2) /6.);
+    
+  if (phi > sqrt(6.) * scf_f){
+    /* after reaching the peak */
+    res = phi*(pow(scf_m,  2) - pow(phi/scf_f, 2)*pow(scf_m, 2) /6.) ;
+    res *= -1.;
+  }
   return  res;
 }
 
@@ -2731,7 +2753,12 @@ double ddV_scf(
   double scf_m = pba->scf_m;
   double scf_f  = pba->scf_f;
   /* double res = pow(scf_m,  2); */
-  double res = pow(scf_m,  2) - pow(phi/scf_f, 2)*pow(scf_m, 2) /2.;
+  double res;
+  /* the unregulated V' */
+  res = pow(scf_m,  2) - pow(phi/scf_f, 2)*pow(scf_m, 2) /2.;
+  if (phi > sqrt(6.) * scf_f){
+    res *= -1.;
+  }
   return  res;
 }
 
