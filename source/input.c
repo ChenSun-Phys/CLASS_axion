@@ -1429,6 +1429,14 @@ int input_read_parameters(
     {
       pba->phi_prime_ini_scf = param1 * _sqrt_8pi_; 
     }
+
+  class_call(parser_read_double(pfc,"scf_friction_debug",&param1,&flag1,errmsg),
+	     errmsg,
+	     errmsg);
+  if (flag1==_TRUE_)
+    {
+      pba->scf_friction_debug = param1; 
+    }  
   
   //if (pba->Omega0_scf != 0.){
   /* if (pba->phi_ini_scf != 0.){ */
@@ -3272,6 +3280,7 @@ int input_default_params(
   pba->scf_f = 0.;
   pba->scf_w = 0.;
   pba->scf_tau_end_over_tau_crit = 0.;
+  pba->scf_friction_debug  =1.;
 
   pba->Omega0_k = 0.;
   pba->K = 0.;

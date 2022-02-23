@@ -110,6 +110,7 @@ struct background
   int scf_rec_approx_flg;       /**< whether background_functions() should read the previously recorded approx status in index_bi_phi_switch_scf(such as being called in background_derivs) or write it such as when being called first time in background_solve()*/
   int scf_flg_just_flipped; /**< used to signal the switch is flipped. so that matching can be done */
   double scf_tau_crit;       /**< used to store the critical time at which the switch is flipped. This info can be passed to Pert module */
+  double scf_friction_debug; /**< used to manually change the friction of the background of the scalar field. for debug use only.  */
   //SC
   //double scf_lambda; /**< \f$ \lambda \f$ : scalar field exponential potential slope */
   //double scf_alpha;  /**< \f$ \alpha \f$ : Albrecht-Skordis polynomial slope */

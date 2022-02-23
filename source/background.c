@@ -2656,7 +2656,8 @@ int background_derivs(
     if (pba->scf_fld_approx == _FALSE_) {
       dy[pba->index_bi_phi_scf] = y[pba->index_bi_phi_prime_scf];
       dy[pba->index_bi_phi_prime_scf] = - y[pba->index_bi_a]*
-      	(2*pvecback[pba->index_bg_H]*y[pba->index_bi_phi_prime_scf]
+	(pba->scf_friction_debug*2*pvecback[pba->index_bg_H]*y[pba->index_bi_phi_prime_scf] // test large friction
+      	/* (2*pvecback[pba->index_bg_H]*y[pba->index_bi_phi_prime_scf] */
       	 + y[pba->index_bi_a]*dV_scf(pba,y[pba->index_bi_phi_scf])) ;
       //dy[pba->index_bi_phi_switch_scf] = 0.;  //take the switch as one function, this maintains y is unchanged. 
       /* dy[pba->index_bi_phi_scf] = 0.; */
